@@ -25,6 +25,13 @@ export default function TabLayout() {
         }}
       />
 
+      <Tabs.Screen
+        name="pet_profile"
+        options={{
+          href: null,
+        }}
+      />
+
        <Tabs.Screen
         name="pets"
         options={{

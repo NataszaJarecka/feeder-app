@@ -1,9 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { Dimensions, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Dimensions, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { ThemedText } from '../../components/themed-text';
 import { ThemedView } from '../../components/themed-view';
+// 1. Zaimportuj funkcję addPet ze swojego pliku z serwisami (zmień ścieżkę na poprawną!)
+import { addPet } from '../../services/petService';
 
 const { width } = Dimensions.get('window');
 
@@ -19,16 +21,40 @@ const AddPetScreen = () => {
   const [photoChosen, setPhotoChosen] = useState(false);
   const [selectedCollar, setSelectedCollar] = useState(collarOptions[0].id);
   const [error, setError] = useState('');
+  // 2. Dodajemy stan ładowania, aby zablokować przycisk podczas zapisu
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!name.trim()) {
       setError('Please enter a pet name');
       return;
     }
 
     setError('');
-    // Here you can add save logic: API call, state update, storage, etc.
-    router.back();
+    setIsLoading(true); // Włączamy kręciołek ładowania
+
+    try {
+      // 3. Przygotowujemy dane do wysłania.
+      // UWAGA: userId powinien pochodzić z Twojego modułu autentykacji (np. Firebase Auth).
+      // Na potrzeby testów wklejam tu przykładowy ID użytkownika.
+      const petData = {
+        name: name.trim(),
+        collar: selectedCollar,
+        image: photoChosen ? 'https://example.com/placeholder-pet.jpg' : '',
+        userId: '1',
+      };
+
+      // 4. Wywołujemy funkcję zapisującą do Firestore
+      await addPet(petData);
+
+      // Po sukcesie wracamy do poprzedniego ekranu
+      router.back();
+    } catch (err) {
+      console.error(err);
+      setError('Something went wrong. Please try again.');
+    } finally {
+      setIsLoading(false); // Wyłączamy ładowanie niezależnie od wyniku
+    }
   };
 
   return (
@@ -53,12 +79,18 @@ const AddPetScreen = () => {
               placeholder="Enter your pet's name"
               placeholderTextColor="#999"
               style={styles.input}
+              editable={!isLoading} // Blokujemy wpisywanie podczas ładowania
             />
           </View>
 
           <View style={styles.section}>
             <ThemedText style={styles.sectionTitle}>Choose photo</ThemedText>
-            <TouchableOpacity style={styles.galleryButton} activeOpacity={0.8}>
+            <TouchableOpacity
+              style={styles.galleryButton}
+              activeOpacity={0.8}
+              onPress={() => setPhotoChosen(!photoChosen)} // Prosta zmiana stanu dla testu
+              disabled={isLoading}
+            >
               <Ionicons name="images" size={18} color="#FFFFFF" />
               <Text style={styles.galleryButtonText}>{photoChosen ? 'Change photo' : 'Choose from gallery'}</Text>
             </TouchableOpacity>
@@ -74,6 +106,7 @@ const AddPetScreen = () => {
                   style={[styles.radioRow, active && styles.radioRowActive]}
                   onPress={() => setSelectedCollar(collar.id)}
                   activeOpacity={0.8}
+                  disabled={isLoading} // Blokujemy możliwość klikania podczas zapisu
                 >
                   <View style={[styles.radioCircle, { borderColor: active ? collar.color : '#CCC' }]}>
                     {active && <View style={[styles.radioDot, { backgroundColor: collar.color }]} />}
@@ -86,8 +119,18 @@ const AddPetScreen = () => {
 
           {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
-          <TouchableOpacity style={styles.saveButton} onPress={handleSave} activeOpacity={0.8}>
-            <Text style={styles.saveButtonText}>Save pet</Text>
+          {/* Zmieniamy przycisk tak, aby reagował na stan isLoading */}
+          <TouchableOpacity
+            style={[styles.saveButton, isLoading && styles.disabledButton]}
+            onPress={handleSave}
+            activeOpacity={0.8}
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <Text style={styles.saveButtonText}>Save pet</Text>
+            )}
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -233,6 +276,9 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderRadius: 25,
     alignItems: 'center',
+  },
+  disabledButton: {
+    backgroundColor: '#F3C5A5', // Jaśniejszy kolor sygnalizujący zablokowanie przycisku
   },
   saveButtonText: {
     color: '#FFFFFF',

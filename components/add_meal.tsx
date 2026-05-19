@@ -1,20 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import React, { useState } from 'react';
-import { Modal, Platform, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, Modal, Platform, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
 import { ThemedText } from './themed-text';
 
-const TEMPORARY_PETS = [
-  { id: '1', name: 'Hans' },
-  { id: '2', name: 'Mika' }
-];
-
-const COLORS = [
-  { name: 'Olive', hex: '#84a98c' },
-  { name: 'Sky', hex: '#2196F3' },
-  { name: 'Coral', hex: '#FF7F50' },
-  { name: 'Gold', hex: '#FFD700' }
-];
+// IMPORT SERWISÓW I TYPÓW
+import { Timestamp } from 'firebase/firestore';
+import { addMeal, NewMeal } from '../services/feedingService';
+import { getPetsByUser, Pet } from '../services/petService';
 
 interface AddMealModalProps {
   isVisible: boolean;
@@ -22,11 +15,40 @@ interface AddMealModalProps {
 }
 
 export function AddMealModal({ isVisible, onClose }: AddMealModalProps) {
-  const [selectedPet, setSelectedPet] = useState(TEMPORARY_PETS[0].id);
+  // Stany dla dynamicznych zwierzaków z bazy
+  const [pets, setPets] = useState<Pet[]>([]);
+  const [selectedPet, setSelectedPet] = useState('');
+  const [loadingPets, setLoadingPets] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
   const [date, setDate] = useState(new Date());
   const [showPicker, setShowPicker] = useState<'date' | 'time' | null>(null);
   const [portion, setPortion] = useState('50');
-  const [selectedColor, setSelectedColor] = useState(COLORS[0]);
+
+  // Szukamy zwierzaków przypisanych do użytkownika "1"
+  const currentUserId = "1";
+
+  // Pobieranie zwierzaków użytkownika przy otwarciu modala
+  useEffect(() => {
+    if (isVisible) {
+      const fetchPets = async () => {
+        setLoadingPets(true);
+        try {
+          const fetchedPets = await getPetsByUser(currentUserId);
+          setPets(fetchedPets);
+          // Jeśli znaleziono zwierzaki, zaznacz pierwszego z listy jako domyślnego
+          if (fetchedPets.length > 0) {
+            setSelectedPet(fetchedPets[0].id);
+          }
+        } catch (error) {
+          console.error("Błąd podczas pobierania zwierzaków w modalu:", error);
+        } finally {
+          setLoadingPets(false);
+        }
+      };
+      fetchPets();
+    }
+  }, [isVisible]);
 
   const onDateChange = (event: any, selectedDate?: Date) => {
     if (Platform.OS === 'android') {
@@ -37,14 +59,33 @@ export function AddMealModal({ isVisible, onClose }: AddMealModalProps) {
     }
   };
 
-  const handleSave = () => {
-    console.log("Zapisano posiłek:", {
-      pet: TEMPORARY_PETS.find(p => p.id === selectedPet)?.name,
-      time: date.toLocaleString(),
-      portion: portion + 'g',
-      color: selectedColor.name
-    });
-    onClose();
+  const handleSave = async () => {
+    if (!selectedPet) {
+      console.log("Nie wybrano żadnego zwierzaka");
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      // Przygotowujemy strukturę nowego posiłku
+      const newMealData: NewMeal = {
+        petId: selectedPet,
+        // Zamieniamy obiekt Date z komponentu pickerów na natywny Timestamp dla Firebase
+        timestamp: Timestamp.fromDate(date),
+        portionGrams: parseFloat(portion) || 0,
+        status: 'scheduled' // Domyślny status
+      };
+
+      // Zapis do kolekcji 'feedings' (obsługiwany przez addMeal)
+      await addMeal(newMealData);
+
+      console.log("Pomyślnie zapisano posiłek w bazie!");
+      onClose(); // Zamykamy modal po sukcesie
+    } catch (error) {
+      console.error("Błąd zapisu posiłku do bazy:", error);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   // Funkcja pomocnicza dla wersji WEB
@@ -69,17 +110,24 @@ export function AddMealModal({ isVisible, onClose }: AddMealModalProps) {
           <ThemedText style={styles.modalTitle} type="title">Add Meal</ThemedText>
 
           <ScrollView showsVerticalScrollIndicator={false}>
-            {/* PET */}
+            {/* PETS - DYNAMICZNA LISTA Z BAZY */}
             <ThemedText style={styles.label}>Pet</ThemedText>
-            {TEMPORARY_PETS.map(pet => (
-              <TouchableOpacity key={pet.id} style={styles.radioRow} onPress={() => setSelectedPet(pet.id)}>
-                <Ionicons
-                  name={selectedPet === pet.id ? "radio-button-on" : "radio-button-off"}
-                  size={24} color="black"
-                />
-                <ThemedText style={styles.radioLabel}>{pet.name}</ThemedText>
-              </TouchableOpacity>
-            ))}
+
+            {loadingPets ? (
+              <ActivityIndicator size="small" color="#F4A261" style={{ marginVertical: 10 }} />
+            ) : pets.length === 0 ? (
+              <ThemedText style={styles.radioLabel}>No pets found.</ThemedText>
+            ) : (
+              pets.map(pet => (
+                <TouchableOpacity key={pet.id} style={styles.radioRow} onPress={() => setSelectedPet(pet.id)}>
+                  <Ionicons
+                    name={selectedPet === pet.id ? "radio-button-on" : "radio-button-off"}
+                    size={24} color="black"
+                  />
+                  <ThemedText style={styles.radioLabel}>{pet.name}</ThemedText>
+                </TouchableOpacity>
+              ))
+            )}
 
             {/* TIME (Wersja WEB vs MOBILE) */}
             <ThemedText style={styles.label}>Time</ThemedText>
@@ -125,13 +173,14 @@ export function AddMealModal({ isVisible, onClose }: AddMealModalProps) {
                   onChangeText={setPortion}
                   keyboardType="numeric"
                   placeholderTextColor="#ddd"
+                  editable={!isSaving}
                 />
                 <ThemedText style={styles.whiteText}>g</ThemedText>
               </View>
             </View>
 
-            {/* COLOUR */}
-            <ThemedText style={styles.label}>Colour</ThemedText>
+            {/* SEKCIJA Z WYBOREM KOLORU ZOSTAŁA ZAKOMENTOWANA */}
+            {/* <ThemedText style={styles.label}>Colour</ThemedText>
             <View style={styles.colorSelectionRow}>
               {COLORS.map((color) => (
                 <TouchableOpacity
@@ -156,10 +205,19 @@ export function AddMealModal({ isVisible, onClose }: AddMealModalProps) {
                 {selectedColor.name}
               </ThemedText>
             </View>
+            */}
           </ScrollView>
 
-          <TouchableOpacity style={styles.doneButton} onPress={handleSave}>
-            <ThemedText style={styles.doneText}>Done</ThemedText>
+          <TouchableOpacity
+            style={[styles.doneButton, isSaving && { backgroundColor: '#fcd2b1' }]}
+            onPress={handleSave}
+            disabled={isSaving}
+          >
+            {isSaving ? (
+              <ActivityIndicator color="white" />
+            ) : (
+              <ThemedText style={styles.doneText}>Done</ThemedText>
+            )}
           </TouchableOpacity>
         </View>
       </View>
@@ -178,7 +236,6 @@ export function AddMealModal({ isVisible, onClose }: AddMealModalProps) {
   );
 }
 
-// Styl dla inputów w przeglądarce
 const webInputStyle: any = {
   backgroundColor: '#F4A261',
   border: 'none',
@@ -186,12 +243,12 @@ const webInputStyle: any = {
   color: 'white',
   padding: '14px',
   fontSize: '18px',
-  fontWeight: '500', // To odpowiada ThemedText defaultSemiBold
+  fontWeight: '500',
   flex: 1,
   textAlign: 'center',
   cursor: 'pointer',
-  fontFamily: 'sans-serif', // Lub konkretna czcionka Twojego projektu, np. 'SpaceMono'
-  outline: 'none', // Usuwa niebieską obwódkę po kliknięciu
+  fontFamily: 'sans-serif',
+  outline: 'none',
 };
 
 const styles = StyleSheet.create({
@@ -228,33 +285,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   row: { flexDirection: 'row', alignItems: 'center' },
-  rowCenter: { flexDirection: 'row', justifyContent: 'center' },
   whiteText: { color: 'white', fontSize: 18, fontWeight: '500' },
   textInput: { color: 'white', fontSize: 18, fontWeight: '500', textAlign: 'center', minWidth: 40 },
-  colorSelectionRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: 10,
-    marginBottom: 5
-  },
-  colorOption: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: 'transparent'
-  },
-  colorOptionSelected: {
-    borderColor: '#555',
-    transform: [{ scale: 1.1 }]
-  },
-  colorCircle: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-  },
   doneButton: {
     backgroundColor: '#F4A261',
     borderRadius: 30,

@@ -1,15 +1,44 @@
 import { ThemedText } from '@/components/themed-text';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React from 'react';
-import { Image, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, Image, Platform, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { ThemedView } from '../../components/themed-view';
 
+// Importujemy logikę bazy danych i interfejs
+import { getPetsByUser, Pet } from '../../services/petService';
+
 // Zmieniamy na stałą szerokość - dzięki temu na szerokim ekranie zmieści się ich więcej
-const ITEM_SIZE = 120;
+const ITEM_SIZE = 290;
 
 export default function MyPetsScreen() {
   const router = useRouter();
+
+  // Stany dla listy zwierzaków i ładowania
+  const [pets, setPets] = useState<Pet[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+
+  // Szukamy zwierzaków przypisanych do użytkownika "user_1"
+  const currentUserId = "1";
+
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof window !== 'undefined') {
+      const fetchUserPets = async () => {
+        try {
+          const fetchedPets = await getPetsByUser(currentUserId);
+          setPets(fetchedPets);
+        } catch (error) {
+          console.error("Błąd pobierania zwierzaków w widoku:", error);
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      fetchUserPets();
+    } else {
+      setLoading(false);
+    }
+  }, []);
 
   return (
     <ThemedView style={styles.container}>
@@ -23,51 +52,54 @@ export default function MyPetsScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* Tło (Pazurki) pozostaje bez zmian */}
+        {/* Tło (Pazurki) */}
         <Image source={require('@/assets/images/paw-pattern.png')} style={[styles.bgPaw, styles.pawTopRight]} resizeMode="contain" />
 
         <ThemedText style={styles.pageTitle}>My Pets</ThemedText>
 
-        {/* --- SIATKA (GRID) --- */}
-        <View style={styles.grid}>
-
-          {/* MAX / HANS */}
-          <View style={styles.gridItem}>
-            <TouchableOpacity
-              activeOpacity={0.7}
-              onPress={() => router.push('/')}
-            >
-              <Image
-                source={require('@/assets/images/dog-photo.jpg')}
-                style={styles.petImage}
-              />
-            </TouchableOpacity>
-            <ThemedText style={styles.petName}>Hans</ThemedText>
+        {/* Jeśli trwa ładowanie, pokazujemy kręciołek */}
+        {loading ? (
+          <View style={styles.centerContainer}>
+            <ActivityIndicator size="large" color="#E99664" />
           </View>
+        ) : (
+          /* --- SIATKA (GRID) --- */
+          <View style={styles.grid}>
 
-          {/* MIKA */}
-          <View style={styles.gridItem}>
-            <TouchableOpacity
-              activeOpacity={0.7}
-              onPress={() => console.log('Profil Miki')}
-            >
-              <Image
-                source={require('@/assets/images/mika-photo.jpg')}
-                style={styles.petImage}
-              />
-            </TouchableOpacity>
-            <ThemedText style={styles.petName}>Mika</ThemedText>
+            {/* DYNAMICZNA LISTA ZWIERZAKÓW Z FIREBASE */}
+            {pets.map((pet) => (
+              <View key={pet.id} style={styles.gridItem}>
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  onPress={() => router.push({
+                    pathname: '/pet_profile',
+                    params: { petId: pet.id }
+                  })}
+                >
+                  <Image
+                    // Sprawdzamy czy imageUrl istnieje i nie jest pustym stringiem
+                    source={
+                      pet.image && pet.image.trim() !== ''
+                        ? { uri: pet.image } // Jeśli jest w bazie, ładujemy URL
+                        : require('@/assets/images/dog_placeholder.png') // Jeśli brak, ładujemy lokalny placeholder (zmień nazwę pliku jeśli trzeba)
+                    }
+                    style={styles.petImage}
+                  />
+                </TouchableOpacity>
+                <ThemedText style={styles.petName}>{pet.name}</ThemedText>
+              </View>
+            ))}
+
+            {/* PRZYCISK DODAWANIA (+) — Zawsze renderuje się na końcu listy */}
+            <View style={styles.gridItem}>
+              <TouchableOpacity style={styles.addButton} onPress={() => router.push('/add_pet')}>
+                <Ionicons name="add" size={50} color="#555" />
+              </TouchableOpacity>
+              <ThemedText style={styles.petName}>Add</ThemedText>
+            </View>
+
           </View>
-
-          {/* PRZYCISK DODAWANIA (+) */}
-          <View style={styles.gridItem}>
-            <TouchableOpacity style={styles.addButton} onPress={() => router.push('/add_pet')}>
-              <Ionicons name="add" size={50} color="#555" />
-            </TouchableOpacity>
-            <ThemedText style={styles.petName}>Add</ThemedText>
-          </View>
-
-        </View>
+        )}
       </ScrollView>
     </ThemedView>
   );
@@ -102,7 +134,7 @@ const styles = StyleSheet.create({
   },
   pageTitle: {
     fontSize: 42,
-    marginTop: 30,
+    marginTop: 50,
     marginBottom: 40,
     textAlign: 'center',
     fontWeight: '400',
@@ -110,14 +142,14 @@ const styles = StyleSheet.create({
   },
   grid: {
     flexDirection: 'row',
-    flexWrap: 'wrap', // To pozwala elementom przechodzić do nowej linii
-    justifyContent: 'center', // Centruje elementy w linii
-    gap: 25, // Odstępy między elementami
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 25,
     paddingHorizontal: 20,
   },
   gridItem: {
     alignItems: 'center',
-    width: ITEM_SIZE, // Stała szerokość kontenera
+    width: ITEM_SIZE,
   },
   petImage: {
     width: ITEM_SIZE,
@@ -125,9 +157,10 @@ const styles = StyleSheet.create({
     borderRadius: ITEM_SIZE / 2,
     borderWidth: 1,
     borderColor: '#eee',
+    backgroundColor: '#eee',
   },
   petName: {
-    fontSize: 18, // Nieco mniejszy font do mniejszych zdjęć
+    fontSize: 27,
     marginTop: 8,
     fontWeight: '400',
   },
@@ -143,9 +176,32 @@ const styles = StyleSheet.create({
     position: 'absolute',
     width: 200,
     height: 200,
-    opacity: 0.3,
+    opacity: 0.6,
     zIndex: -1,
   },
-  pawTopRight: { top: 10, right: 20, transform: [{ rotate: '15deg' }] },
-  // ... reszta stylów łapek bez zmian
+  pawTopRight: {
+    top: 10,
+    right: 20,
+    transform: [{ rotate: '15deg' }],
+  },
+  pawMidLeft: {
+    top: 250,
+    left: 20,
+    transform: [{ rotate: '-10deg' }],
+  },
+  pawMidRight: {
+    top: 500,
+    right: 30,
+    transform: [{ rotate: '5deg' }],
+  },
+  pawBottomLeft: {
+    top: 750,
+    left: 20,
+    transform: [{ rotate: '-20deg' }],
+  },
+  centerContainer: {
+    marginVertical: 60,
+    alignItems: 'center',
+    justifyContent: 'center',
+  }
 });

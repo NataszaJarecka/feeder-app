@@ -1,99 +1,195 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { Image, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Image, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { ThemedText } from '../../components/themed-text';
 import { ThemedView } from '../../components/themed-view';
 
-// IMPORT MODALA (Upewnij się, że ścieżka i nazwa pliku są poprawne)
+// IMPORT MODALA
 import { AddMealModal } from '../../components/add_meal';
+
+// IMPORT SERWISÓW
+import { getAllMealsByDate, Meal } from '../../services/feedingService';
+import { getPetById, Pet } from '../../services/petService';
 
 const HOUR_HEIGHT = 80;
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 
+// Komponent kafelka posiłku (pobiera dane zwierzaka w locie)
+const MealTile = ({ meal }: { meal: Meal }) => {
+  const [pet, setPet] = useState<Pet | null>(null);
+
+  // Bezpiecznie sprawdzamy, czy timestamp to obiekt z Firebase (posiada funkcję toDate)
+  const mealDate = meal.timestamp && typeof meal.timestamp.toDate === 'function'
+    ? meal.timestamp.toDate()
+    : new Date(meal.timestamp);
+
+  // Pobieramy dane zwierzaka na podstawie petId z posiłku
+  useEffect(() => {
+    const fetchPet = async () => {
+      try {
+        const petData = await getPetById(meal.petId);
+        setPet(petData);
+      } catch (e) {
+        console.error("Błąd pobierania zwierzaka do kafelka:", e);
+      }
+    };
+    if (meal.petId) {
+      fetchPet();
+    }
+  }, [meal.petId]);
+
+  // Obliczanie pozycji pionowej kafelka (HOUR_HEIGHT = 80)
+  const hour = mealDate.getHours();
+  const minutes = mealDate.getMinutes();
+  const tilePosition = (hour * HOUR_HEIGHT) + (minutes / 60 * HOUR_HEIGHT);
+
+  const formattedTime = mealDate.toLocaleTimeString('en-GB', {
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+
+  return (
+    <View style={[styles.mealTile, { top: tilePosition }]}>
+      <Image
+        source={
+          pet?.image && pet.image.trim() !== ''
+            ? { uri: pet.image }
+            : require('@/assets/images/dog_placeholder.png') // Twój domyślny placeholder
+        }
+        style={styles.tilePetImage}
+      />
+      <View style={styles.tileInfo}>
+        <ThemedText style={styles.tilePetName}>{pet ? pet.name : 'Loading...'}</ThemedText>
+        <ThemedText style={styles.tileTime}>{`${formattedTime} • ${meal.portionGrams}g`}</ThemedText>
+      </View>
+    </View>
+  );
+};
+
 export default function ScheduleScreen() {
   const router = useRouter();
-  const [now, setNow] = useState(new Date());
+  const { petId } = useLocalSearchParams<{ petId: string }>();
 
-  // STAN MODALA
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [now, setNow] = useState(new Date());
+  const [meals, setMeals] = useState<Meal[]>([]);
+  const [loading, setLoading] = useState(false);
   const [isModalVisible, setIsModalVisible] = useState(false);
 
+  // Zegar dla linii obecnego czasu
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 60000);
     return () => clearInterval(timer);
   }, []);
 
-  const formattedDate = now.toLocaleDateString('en-GB', {
+  // Pobieranie posiłków przy zmianie daty
+  useEffect(() => {
+    const fetchAllAnimalsMeals = async () => {
+      setLoading(true);
+      try {
+        const dayMeals = await getAllMealsByDate(selectedDate);
+        console.log("Pobrane posiłki dla wszystkich zwierzaków:", dayMeals);
+        setMeals(dayMeals);
+      } catch (error) {
+        console.error("Błąd ładowania wszystkich posiłków do kalendarza:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAllAnimalsMeals();
+  }, [selectedDate]);
+
+  const changeDay = (amount: number) => {
+    const nextDay = new Date(selectedDate);
+    nextDay.setDate(selectedDate.getDate() + amount);
+    setSelectedDate(nextDay);
+  };
+
+  const formattedDate = selectedDate.toLocaleDateString('en-GB', {
     weekday: 'long',
     day: 'numeric',
     month: 'long',
     year: 'numeric',
   });
 
+  // Pozycja czarnego paska obecnej godziny
   const currentHour = now.getHours();
   const currentMinutes = now.getMinutes();
   const indicatorPosition = (currentHour * HOUR_HEIGHT) + (currentMinutes / 60 * HOUR_HEIGHT);
 
+  // Sprawdzamy czy wybrany dzień na kalendarzu to "dzisiaj"
+  const isToday = selectedDate.toDateString() === now.toDateString();
+
   return (
     <ThemedView style={styles.container}>
-      {/* HEADER */}
+      {/* HEADER - WYŚRODKOWANY BEZ STRZAŁKI WSTECZ */}
       <View style={styles.header}>
-        <View style={{ width: 32 }} />
+        <View style={styles.headerSpacer} />
         <ThemedText style={styles.logo}>iFeeder</ThemedText>
-        <TouchableOpacity onPress={() => router.push('/notification')}>
+        <TouchableOpacity onPress={() => router.push('/notification')} style={styles.headerIcon}>
           <Ionicons name="notifications" size={28} color="black" />
         </TouchableOpacity>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-
+        {/* Tło łapki */}
         <Image source={require('@/assets/images/paw-pattern.png')} style={[styles.bgPaw, styles.pawTopRight]} resizeMode="contain" />
         <Image source={require('@/assets/images/paw-pattern.png')} style={[styles.bgPaw, styles.pawMidLeft]} resizeMode="contain" />
-        <Image source={require('@/assets/images/paw-pattern.png')} style={[styles.bgPaw, styles.pawMidRight]} resizeMode="contain" />
-        <Image source={require('@/assets/images/paw-pattern.png')} style={[styles.bgPaw, styles.pawBottomLeft]} resizeMode="contain" />
 
-        {/* TYTUŁ */}
         <ThemedText style={styles.pageTitle}>Schedule</ThemedText>
 
         {/* NAWIGACJA DATĄ */}
         <View style={styles.dateSelector}>
-          <TouchableOpacity><Ionicons name="chevron-back" size={24} color="black" /></TouchableOpacity>
+          <TouchableOpacity onPress={() => changeDay(-1)}>
+            <Ionicons name="chevron-back" size={24} color="black" />
+          </TouchableOpacity>
           <ThemedText style={styles.dateText}>{formattedDate}</ThemedText>
-          <TouchableOpacity><Ionicons name="chevron-forward" size={24} color="black" /></TouchableOpacity>
+          <TouchableOpacity onPress={() => changeDay(1)}>
+            <Ionicons name="chevron-forward" size={24} color="black" />
+          </TouchableOpacity>
         </View>
 
-        {/* KALENDARZ / TIMELINE */}
-        <View style={styles.timelineContainer}>
-
-          {HOURS.map((hour) => (
-            <View key={hour} style={styles.hourRow}>
-              <View style={styles.hourLabelContainer}>
-                <ThemedText style={styles.hourLabel}>{`${hour}:00`}</ThemedText>
+        {loading ? (
+          <ActivityIndicator size="large" color="#FF8C42" style={{ marginTop: 50 }} />
+        ) : (
+          /* KALENDARZ / TIMELINE */
+          <View style={styles.timelineContainer}>
+            {HOURS.map((hour) => (
+              <View key={hour} style={styles.hourRow}>
+                <View style={styles.hourLabelContainer}>
+                  <ThemedText style={styles.hourLabel}>{`${hour}:00`}</ThemedText>
+                </View>
+                <View style={styles.hourSlot} />
               </View>
-              <View style={styles.hourSlot} />
-            </View>
-          ))}
+            ))}
 
-          {/* CZARNY PASEK OBECNEJ GODZINY */}
-          <View style={[styles.timeIndicator, { top: indicatorPosition }]}>
-            <View style={styles.indicatorDot} />
-            <View style={styles.indicatorLine} />
-            <View style={styles.indicatorDot} />
+            {/* DYNAMICZNE KAFELKI POSIŁKÓW */}
+            {meals.map((meal) => (
+              <MealTile key={meal.id} meal={meal} />
+            ))}
+
+            {/* CZARNY PASEK OBECNEJ GODZINY */}
+            {isToday && (
+              <View style={[styles.timeIndicator, { top: indicatorPosition }]}>
+                <View style={styles.indicatorDot} />
+                <View style={styles.indicatorLine} />
+                <View style={styles.indicatorDot} />
+              </View>
+            )}
           </View>
-        </View>
+        )}
       </ScrollView>
 
-      {/* MODAL DODAWANIA (Wywoływany stanem) */}
+      {/* MODAL DODAWANIA */}
       <AddMealModal
         isVisible={isModalVisible}
         onClose={() => setIsModalVisible(false)}
       />
 
-      {/* FAB (Floating Action Button) - KLIKNIĘCIE OTWIERA MODAL */}
-      <TouchableOpacity
-        style={styles.fab}
-        onPress={() => setIsModalVisible(true)}
-      >
+      {/* FAB BUTTON */}
+      <TouchableOpacity style={styles.fab} onPress={() => setIsModalVisible(true)}>
         <Ionicons name="add" size={40} color="white" />
       </TouchableOpacity>
     </ThemedView>
@@ -113,19 +209,29 @@ const styles = StyleSheet.create({
     paddingBottom: 15,
     paddingHorizontal: 20,
     backgroundColor: 'white',
+    elevation: 4,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 3,
-    elevation: 4,
+  },
+  headerSpacer: {
+    width: 40,
+  },
+  headerIcon: {
+    width: 40,
+    alignItems: 'flex-end',
+    justifyContent: 'center',
   },
   logo: {
     fontSize: 32,
     fontWeight: 'bold',
     fontStyle: 'italic',
+    textAlign: 'center',
+    flex: 1,
   },
   scrollContent: {
-    paddingBottom: 100,
+    paddingBottom: 120,
   },
   bgPaw: {
     position: 'absolute',
@@ -134,31 +240,13 @@ const styles = StyleSheet.create({
     opacity: 0.6,
     zIndex: -1,
   },
-  pawTopRight: {
-    top: 10,
-    right: 20,
-    transform: [{ rotate: '15deg' }],
-  },
-  pawMidLeft: {
-    top: 250,
-    left: 20,
-    transform: [{ rotate: '-10deg' }],
-  },
-  pawMidRight: {
-    top: 500,
-    right: 30,
-    transform: [{ rotate: '5deg' }],
-  },
-  pawBottomLeft: {
-    top: 750,
-    left: 20,
-    transform: [{ rotate: '-20deg' }],
-  },
+  pawTopRight: { top: 10, right: 20, transform: [{ rotate: '15deg' }] },
+  pawMidLeft: { top: 250, left: 20, transform: [{ rotate: '-10deg' }] },
   pageTitle: {
     fontSize: 42,
     textAlign: 'center',
     marginTop: 30,
-    marginBottom: 40,
+    marginBottom: 20,
     fontWeight: '400',
     color: '#000',
   },
@@ -235,5 +323,44 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 5,
+  },
+  mealTile: {
+    position: 'absolute',
+    left: 75,
+    width: '75%',
+    height: 60,
+    backgroundColor: '#FFF3EA',
+    borderColor: '#FF8C42',
+    borderWidth: 1,
+    borderRadius: 15,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    zIndex: 99,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+  },
+  tilePetImage: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#ccc',
+  },
+  tileInfo: {
+    marginLeft: 12,
+    justifyContent: 'center',
+  },
+  tilePetName: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#000',
+  },
+  tileTime: {
+    fontSize: 13,
+    color: '#666',
+    marginTop: 2,
   },
 });
