@@ -98,7 +98,12 @@ export default function PetProfileScreen() {
         {/* TYTUŁ SEKCJI */}
         <View style={styles.sectionTitleRow}>
           <ThemedText type="title" style={styles.sectionTitle}>Pet's profile</ThemedText>
-          <TouchableOpacity style={styles.iconWrapper}>
+          <TouchableOpacity
+            style={styles.iconWrapper}
+            onPress={() => router.push({
+              pathname: '/edit_pet',
+              params: { petId: petId } // Przekazujemy ID zwierzaka dalej
+            })}>
             <Ionicons name="pencil-outline" size={26} color="#777" />
           </TouchableOpacity>
         </View>

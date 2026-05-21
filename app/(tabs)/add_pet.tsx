@@ -1,10 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker'; // Importujemy picker od Expo
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { ActivityIndicator, Dimensions, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Dimensions, Image, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { ThemedText } from '../../components/themed-text';
 import { ThemedView } from '../../components/themed-view';
-// 1. Zaimportuj funkcję addPet ze swojego pliku z serwisami (zmień ścieżkę na poprawną!)
 import { addPet } from '../../services/petService';
 
 const { width } = Dimensions.get('window');
@@ -18,11 +18,44 @@ const collarOptions = [
 const AddPetScreen = () => {
   const router = useRouter();
   const [name, setName] = useState('');
-  const [photoChosen, setPhotoChosen] = useState(false);
+
+  // ZMIANA: Zamiast boolean, przechowujemy tutaj uri wybranego pliku lub obiekt File
+  const [selectedPhoto, setSelectedPhoto] = useState<any>(null);
+
   const [selectedCollar, setSelectedCollar] = useState(collarOptions[0].id);
   const [error, setError] = useState('');
-  // 2. Dodajemy stan ładowania, aby zablokować przycisk podczas zapisu
   const [isLoading, setIsLoading] = useState(false);
+
+  // Funkcja otwierająca galerię telefonu
+  const pickImage = async () => {
+    // Prośba o uprawnienia do galerii
+    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+    if (permissionResult.granted === false) {
+      alert("Permission to access camera roll is required!");
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'], // Interesują nas tylko zdjęcia
+      allowsEditing: true,    // Pozwala użytkownikowi przyciąć zdjęcie (np. w kwadrat)
+      aspect: [1, 1],
+      quality: 0.8,           // Kompresja, by zdjęcia nie ważyły po 10MB
+    });
+
+    if (!result.canceled && result.assets && result.assets[0]) {
+      const asset = result.assets[0];
+
+      // W React Native, aby przesłać plik przez FormData jako "File", tworzymy taki obiekt:
+      const imageFile = {
+        uri: asset.uri,
+        name: asset.fileName || `pet_photo_${Date.now()}.jpg`,
+        type: asset.mimeType || 'image/jpeg',
+      };
+
+      setSelectedPhoto(imageFile);
+    }
+  };
 
   const handleSave = async () => {
     if (!name.trim()) {
@@ -30,30 +63,33 @@ const AddPetScreen = () => {
       return;
     }
 
+    if (!selectedPhoto) {
+      setError('Please select a photo for your pet');
+      return;
+    }
+
     setError('');
-    setIsLoading(true); // Włączamy kręciołek ładowania
+    setIsLoading(true);
 
     try {
-      // 3. Przygotowujemy dane do wysłania.
-      // UWAGA: userId powinien pochodzić z Twojego modułu autentykacji (np. Firebase Auth).
-      // Na potrzeby testów wklejam tu przykładowy ID użytkownika.
+      // Przygotowujemy dane TEKSTOWE zwierzaka (zgodnie z Omit<NewPet, 'image'> z petService)
       const petData = {
         name: name.trim(),
         collar: selectedCollar,
-        image: photoChosen ? 'https://example.com/placeholder-pet.jpg' : '',
-        userId: '1',
+        userId: '1', // Tutaj docelowo wstawisz ID zalogowanego usera z Firebase Auth
       };
 
-      // 4. Wywołujemy funkcję zapisującą do Firestore
-      await addPet(petData);
+      // Wywołujemy naszą zmodyfikowaną funkcję.
+      // JavaScript w React Native potrafi przepchnąć obiekt z uri, name i type do fetch/axios w Supabase.
+      await addPet(petData, selectedPhoto);
 
-      // Po sukcesie wracamy do poprzedniego ekranu
-      router.back();
+      // Po sukcesie wracamy do listy zwierzaków
+      router.replace('/pets');
     } catch (err) {
       console.error(err);
-      setError('Something went wrong. Please try again.');
+      setError('Something went wrong while saving. Please try again.');
     } finally {
-      setIsLoading(false); // Wyłączamy ładowanie niezależnie od wyniku
+      setIsLoading(false);
     }
   };
 
@@ -79,20 +115,30 @@ const AddPetScreen = () => {
               placeholder="Enter your pet's name"
               placeholderTextColor="#999"
               style={styles.input}
-              editable={!isLoading} // Blokujemy wpisywanie podczas ładowania
+              editable={!isLoading}
             />
           </View>
 
           <View style={styles.section}>
             <ThemedText style={styles.sectionTitle}>Choose photo</ThemedText>
+
+            {/* Podgląd wybranego zdjęcia */}
+            {selectedPhoto && (
+              <View style={styles.imagePreviewContainer}>
+                <Image source={{ uri: selectedPhoto.uri }} style={styles.imagePreview} />
+              </View>
+            )}
+
             <TouchableOpacity
               style={styles.galleryButton}
               activeOpacity={0.8}
-              onPress={() => setPhotoChosen(!photoChosen)} // Prosta zmiana stanu dla testu
+              onPress={pickImage} // Podpinamy funkcję wyboru zdjęcia
               disabled={isLoading}
             >
               <Ionicons name="images" size={18} color="#FFFFFF" />
-              <Text style={styles.galleryButtonText}>{photoChosen ? 'Change photo' : 'Choose from gallery'}</Text>
+              <Text style={styles.galleryButtonText}>
+                {selectedPhoto ? 'Change photo' : 'Choose from gallery'}
+              </Text>
             </TouchableOpacity>
           </View>
 
@@ -106,7 +152,7 @@ const AddPetScreen = () => {
                   style={[styles.radioRow, active && styles.radioRowActive]}
                   onPress={() => setSelectedCollar(collar.id)}
                   activeOpacity={0.8}
-                  disabled={isLoading} // Blokujemy możliwość klikania podczas zapisu
+                  disabled={isLoading}
                 >
                   <View style={[styles.radioCircle, { borderColor: active ? collar.color : '#CCC' }]}>
                     {active && <View style={[styles.radioDot, { backgroundColor: collar.color }]} />}
@@ -119,7 +165,6 @@ const AddPetScreen = () => {
 
           {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
-          {/* Zmieniamy przycisk tak, aby reagował na stan isLoading */}
           <TouchableOpacity
             style={[styles.saveButton, isLoading && styles.disabledButton]}
             onPress={handleSave}
@@ -214,6 +259,16 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#000',
   },
+  imagePreviewContainer: {
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+  imagePreview: {
+    width: 150,
+    height: 150,
+    borderRadius: 75, // Tworzy okrągły podgląd zdjęcia zwierzaka
+    backgroundColor: '#F0F0F0',
+  },
   galleryButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -227,11 +282,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
-  },
-  photoLabel: {
-    marginTop: 10,
-    fontSize: 14,
-    color: '#687076',
   },
   radioRow: {
     flexDirection: 'row',
@@ -278,7 +328,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   disabledButton: {
-    backgroundColor: '#F3C5A5', // Jaśniejszy kolor sygnalizujący zablokowanie przycisku
+    backgroundColor: '#F3C5A5',
   },
   saveButtonText: {
     color: '#FFFFFF',

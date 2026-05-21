@@ -26,6 +26,13 @@ export default function TabLayout() {
       />
 
       <Tabs.Screen
+        name="edit_pet"
+        options={{
+          href: null,
+        }}
+      />
+
+      <Tabs.Screen
         name="pet_profile"
         options={{
           href: null,

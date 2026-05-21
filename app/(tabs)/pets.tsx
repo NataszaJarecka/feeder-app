@@ -1,7 +1,7 @@
 import { ThemedText } from '@/components/themed-text';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import React, { useCallback, useState } from 'react';
 import { ActivityIndicator, Image, Platform, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { ThemedView } from '../../components/themed-view';
 
@@ -21,24 +21,38 @@ export default function MyPetsScreen() {
   // Szukamy zwierzaków przypisanych do użytkownika "user_1"
   const currentUserId = "1";
 
-  useEffect(() => {
-    if (Platform.OS !== 'web' || typeof window !== 'undefined') {
-      const fetchUserPets = async () => {
-        try {
-          const fetchedPets = await getPetsByUser(currentUserId);
-          setPets(fetchedPets);
-        } catch (error) {
-          console.error("Błąd pobierania zwierzaków w widoku:", error);
-        } finally {
-          setLoading(false);
-        }
-      };
+  // useFocusEffect wymusza pobranie danych z bazy ZA KAŻDYM RAZEM, gdy ekran staje się aktywny
+  useFocusEffect(
+    useCallback(() => {
+      let isMounted = true;
 
-      fetchUserPets();
-    } else {
-      setLoading(false);
-    }
-  }, []);
+      if (Platform.OS !== 'web' || typeof window !== 'undefined') {
+        const fetchUserPets = async () => {
+          try {
+            setLoading(true); // Pokazuje kręciołek przy odświeżaniu danych
+            const fetchedPets = await getPetsByUser(currentUserId);
+            if (isMounted) {
+              setPets(fetchedPets);
+            }
+          } catch (error) {
+            console.error("Błąd pobierania zwierzaków w widoku:", error);
+          } finally {
+            if (isMounted) {
+              setLoading(false);
+            }
+          }
+        };
+
+        fetchUserPets();
+      } else {
+        setLoading(false);
+      }
+
+      return () => {
+        isMounted = false;
+      };
+    }, [currentUserId])
+  );
 
   return (
     <ThemedView style={styles.container}>
@@ -66,29 +80,41 @@ export default function MyPetsScreen() {
           /* --- SIATKA (GRID) --- */
           <View style={styles.grid}>
 
-            {/* DYNAMICZNA LISTA ZWIERZAKÓW Z FIREBASE */}
-            {pets.map((pet) => (
-              <View key={pet.id} style={styles.gridItem}>
-                <TouchableOpacity
-                  activeOpacity={0.7}
-                  onPress={() => router.push({
-                    pathname: '/pet_profile',
-                    params: { petId: pet.id }
-                  })}
-                >
-                  <Image
-                    // Sprawdzamy czy imageUrl istnieje i nie jest pustym stringiem
-                    source={
-                      pet.image && pet.image.trim() !== ''
-                        ? { uri: pet.image } // Jeśli jest w bazie, ładujemy URL
-                        : require('@/assets/images/dog_placeholder.png') // Jeśli brak, ładujemy lokalny placeholder (zmień nazwę pliku jeśli trzeba)
-                    }
-                    style={styles.petImage}
-                  />
-                </TouchableOpacity>
-                <ThemedText style={styles.petName}>{pet.name}</ThemedText>
-              </View>
-            ))}
+            {/* DYNAMICZNA LISTA ZWIERZAKÓW */}
+            {pets.map((pet) => {
+              const hasValidImage = pet.image && pet.image.trim() !== '' && pet.image.startsWith('http');
+
+              return (
+                <View key={pet.id} style={styles.gridItem}>
+                  <TouchableOpacity
+                    activeOpacity={0.7}
+                    onPress={() => router.push({
+                      pathname: '/pet_profile',
+                      params: { petId: pet.id }
+                    })}
+                  >
+                    <Image
+                      key={pet.image}
+                      source={
+                        hasValidImage
+                          ? {
+                              uri: pet.image,
+                              headers: { Pragma: 'no-cache' }
+                            }
+                          : require('@/assets/images/dog_placeholder.png')
+                      }
+                      style={styles.petImage}
+                      // @ts-ignore - poprawka CORS pod przeglądarki internetowe
+                      crossOrigin="anonymous"
+                      onError={(e) => {
+                        console.warn(`Problem z załadowaniem obrazka dla ${pet.name}:`, e.nativeEvent.error);
+                      }}
+                    />
+                  </TouchableOpacity>
+                  <ThemedText style={styles.petName}>{pet.name}</ThemedText>
+                </View>
+              );
+            })}
 
             {/* PRZYCISK DODAWANIA (+) — Zawsze renderuje się na końcu listy */}
             <View style={styles.gridItem}>
@@ -183,21 +209,6 @@ const styles = StyleSheet.create({
     top: 10,
     right: 20,
     transform: [{ rotate: '15deg' }],
-  },
-  pawMidLeft: {
-    top: 250,
-    left: 20,
-    transform: [{ rotate: '-10deg' }],
-  },
-  pawMidRight: {
-    top: 500,
-    right: 30,
-    transform: [{ rotate: '5deg' }],
-  },
-  pawBottomLeft: {
-    top: 750,
-    left: 20,
-    transform: [{ rotate: '-20deg' }],
   },
   centerContainer: {
     marginVertical: 60,
