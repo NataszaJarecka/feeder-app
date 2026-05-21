@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { Dimensions, Image, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ThemedText } from '../../components/themed-text';
 import { ThemedView } from '../../components/themed-view';
 
@@ -9,6 +10,7 @@ const { width } = Dimensions.get('window');
 
 const NotificationSettingsScreen = () => {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   // Stany dla przełączników
   const [isEnabled, setIsEnabled] = useState(true);
@@ -20,7 +22,7 @@ const NotificationSettingsScreen = () => {
   return (
     <ThemedView style={styles.container}>
       {/* HEADER */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 15 }]}>
         <TouchableOpacity onPress={() => router.push('/settings')}>
           <Ionicons name="arrow-back" size={28} color="black" />
         </TouchableOpacity>
@@ -110,7 +112,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingTop: 50,
     paddingBottom: 15,
     paddingHorizontal: 20,
     backgroundColor: 'white',

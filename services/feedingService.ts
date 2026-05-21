@@ -1,4 +1,4 @@
-import { addDoc, collection, getDocs, orderBy, query, Timestamp, where } from 'firebase/firestore';
+import { addDoc, collection, deleteDoc, doc, getDocs, orderBy, query, Timestamp, updateDoc, where } from 'firebase/firestore';
 import { db } from '../firebaseConfig'; // popraw ścieżkę do swojej konfiguracji Firebase
 
 // 1. Definiujemy strukturę danych posiłku
@@ -82,4 +82,14 @@ export const getAllMealsByDate = async (date: Date): Promise<Meal[]> => {
     console.error("Błąd pobierania i sortowania posiłków:", error);
     throw error;
   }
+};
+
+export const updateMeal = async (mealId: string, updatedData: Partial<Meal>): Promise<void> => {
+  const mealDocRef = doc(db, 'feedings', mealId);
+  await updateDoc(mealDocRef, updatedData);
+};
+
+export const deleteMeal = async (mealId: string): Promise<void> => {
+  const mealDocRef = doc(db, 'feedings', mealId);
+  await deleteDoc(mealDocRef);
 };

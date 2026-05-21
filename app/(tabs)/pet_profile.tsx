@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router'; // 1. Dodajemy useLocalSearchParams
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Image, Platform, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
-
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ThemedText } from '../../components/themed-text';
 import { ThemedView } from '../../components/themed-view';
 // 2. Importujemy nową funkcję oraz interfejs
@@ -18,6 +18,7 @@ const ActionButton = ({ title, onPress }: { title: string; onPress?: () => void 
 
 export default function PetProfileScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   // 3. Odbieramy petId przekazane w nawigacji
   const { petId } = useLocalSearchParams<{ petId: string }>();
@@ -77,7 +78,7 @@ export default function PetProfileScreen() {
   return (
     <ThemedView style={styles.screenContainer}>
       {/* 1. GÓRNY PASEK (HEADER) */}
-      <View style={styles.headerBar}>
+      <View style={[styles.headerBar, { paddingTop: insets.top + 15 }]}>
         <TouchableOpacity style={styles.iconWrapper} onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={26} color="black" />
         </TouchableOpacity>
@@ -154,13 +155,13 @@ const styles = StyleSheet.create({
     paddingBottom: 100,
   },
   headerBar: {
-    height: 70,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     borderBottomWidth: 1,
     borderBottomColor: '#eee',
     paddingHorizontal: 15,
+    paddingBottom: 15,
   },
   brandTitle: {
     fontSize: 24,

@@ -1,19 +1,70 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React from 'react';
-import { Dimensions, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, Dimensions, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ThemedText } from '../../components/themed-text';
 import { ThemedView } from '../../components/themed-view';
+
+// IMPORTY FIREBASE
+import { signOut } from 'firebase/auth';
+import { doc, getDoc } from 'firebase/firestore';
+import { auth, db } from '../../firebaseConfig';
 
 const { width } = Dimensions.get('window');
 
 const AccountScreen = () => {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
+
+  // STANY DLA REALNYCH DANYCH
+  const [username, setUsername] = useState('Loading...');
+  const [email, setEmail] = useState('');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchUserData = async () => {
+      const currentUser = auth.currentUser;
+
+      if (currentUser) {
+        setEmail(currentUser.email || 'No email');
+
+        try {
+          const userDocRef = doc(db, 'users', currentUser.uid);
+          const userDocSnap = await getDoc(userDocRef);
+
+          if (userDocSnap.exists()) {
+            const userData = userDocSnap.data();
+            setUsername(userData.username || 'Anonymous');
+          } else {
+            setUsername('User Profile');
+          }
+        } catch (error) {
+          console.error('Error fetching user document:', error);
+          setUsername('Error loading name');
+        } finally {
+          setLoading(false);
+        }
+      } else {
+        setLoading(false);
+      }
+    };
+
+    fetchUserData();
+  }, []);
+
+  const handleLogOut = async () => {
+    try {
+      await signOut(auth);
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
+  };
 
   return (
     <ThemedView style={styles.container}>
       {/* HEADER */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 15 }]}>
         <TouchableOpacity onPress={() => router.push('/settings')} style={styles.headerSideLeft}>
           <Ionicons name="arrow-back" size={28} color="black" />
         </TouchableOpacity>
@@ -32,30 +83,27 @@ const AccountScreen = () => {
         <View style={styles.profileSection}>
           <View style={styles.avatarContainer}>
             <Image
-              source={{ uri: 'https://via.placeholder.com/150' }} // Tutaj Twój obrazek użytkownika
+              source={require('@/assets/images/user_placeholder.png')} // Zmiana na lokalny plik z Twoich assets
               style={styles.profileImage}
             />
-            <TouchableOpacity style={styles.editBadge}>
-              <Ionicons name="camera" size={20} color="white" />
-            </TouchableOpacity>
+            {/* Przycisk edycji (badge z aparatem) został usunięty stąd */}
           </View>
-          <Text style={styles.userName}>Anna Kowalska</Text>
-          <Text style={styles.userEmail}>anna.k@example.com</Text>
+
+          {loading ? (
+            <ActivityIndicator size="small" color="#E99664" style={{ marginTop: 10 }} />
+          ) : (
+            <>
+              <Text style={styles.userName}>{username}</Text>
+              <Text style={styles.userEmail}>{email}</Text>
+            </>
+          )}
         </View>
 
-        {/* STATYSTYKI KONTA */}
+        {/* JEDYNA STATYSTYKA - ZWIERZĘTA */}
         <View style={styles.statsRow}>
           <View style={styles.statBox}>
             <Text style={styles.statNumber}>2</Text>
             <Text style={styles.statLabel}>Pets</Text>
-          </View>
-          <View style={[styles.statBox, { borderLeftWidth: 1, borderRightWidth: 1, borderColor: '#eee' }]}>
-            <Text style={styles.statNumber}>124</Text>
-            <Text style={styles.statLabel}>Meals</Text>
-          </View>
-          <View style={styles.statBox}>
-            <Text style={styles.statNumber}>12d</Text>
-            <Text style={styles.statLabel}>Streak</Text>
           </View>
         </View>
 
@@ -69,7 +117,7 @@ const AccountScreen = () => {
             <Ionicons name="chevron-forward" size={24} color="#CCC" />
           </TouchableOpacity>
 
-          <TouchableOpacity style={[styles.menuItem, { marginTop: 20, borderBottomWidth: 0 }]} onPress={() => router.push('/')}>
+          <TouchableOpacity style={[styles.menuItem, { marginTop: 20, borderBottomWidth: 0 }]} onPress={handleLogOut}>
             <View style={[styles.menuIconCircle, { backgroundColor: '#FF5A5F' }]}>
               <Ionicons name="log-out" size={24} color="white" />
             </View>
@@ -90,7 +138,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingTop: 50,
     paddingBottom: 15,
     paddingHorizontal: 20,
     backgroundColor: 'white',
@@ -120,26 +167,10 @@ const styles = StyleSheet.create({
     opacity: 0.6,
     zIndex: -1,
   },
-  pawTopRight: {
-    top: 10,
-    right: 20,
-    transform: [{ rotate: '15deg' }],
-  },
-  pawMidLeft: {
-    top: 250,
-    left: 20,
-    transform: [{ rotate: '-10deg' }],
-  },
-  pawMidRight: {
-    top: 500,
-    right: 30,
-    transform: [{ rotate: '5deg' }],
-  },
-  pawBottomLeft: {
-    top: 750,
-    left: 20,
-    transform: [{ rotate: '-20deg' }],
-  },
+  pawTopRight: { top: 10, right: 20, transform: [{ rotate: '15deg' }] },
+  pawMidLeft: { top: 250, left: 20, transform: [{ rotate: '-10deg' }] },
+  pawMidRight: { top: 500, right: 30, transform: [{ rotate: '5deg' }] },
+  pawBottomLeft: { top: 750, left: 20, transform: [{ rotate: '-20deg' }] },
   scrollContent: {
     alignItems: 'center',
     paddingBottom: 50,
@@ -147,6 +178,7 @@ const styles = StyleSheet.create({
   profileSection: {
     alignItems: 'center',
     marginTop: 20,
+    minHeight: 200,
   },
   avatarContainer: {
     position: 'relative',
@@ -158,19 +190,6 @@ const styles = StyleSheet.create({
     borderRadius: 65,
     borderWidth: 4,
     borderColor: '#E99664',
-  },
-  editBadge: {
-    position: 'absolute',
-    bottom: 5,
-    right: 5,
-    backgroundColor: '#E99664',
-    padding: 8,
-    borderRadius: 20,
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
   },
   userName: {
     fontSize: 28,
@@ -184,7 +203,7 @@ const styles = StyleSheet.create({
   },
   statsRow: {
     flexDirection: 'row',
-    width: width * 0.85,
+    width: width * 0.4, // Zmniejszyłem szerokość karty, żeby pojedyncza statystyka wyglądała zgrabnie i symetrycznie
     backgroundColor: '#fff',
     borderRadius: 25,
     marginTop: 30,
@@ -200,7 +219,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   statNumber: {
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: 'bold',
     color: '#E99664',
   },

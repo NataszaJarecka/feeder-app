@@ -1,14 +1,18 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { signOut } from 'firebase/auth';
 import React from 'react';
-import { Dimensions, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Dimensions, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ThemedText } from '../../components/themed-text';
 import { ThemedView } from '../../components/themed-view';
+import { auth } from '../../firebaseConfig'; // dostosuj ścieżkę
 
 const { width } = Dimensions.get('window');
 
 const SettingsScreen = () => {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   // Definicja opcji ustawień dla łatwiejszego renderowania
   const settingsOptions = [
@@ -20,7 +24,7 @@ const SettingsScreen = () => {
   return (
     <ThemedView style={styles.container}>
       {/* HEADER - Identyczny jak w Statistics */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 15 }]}>
         <View style={styles.headerSide} />
         <ThemedText style={styles.logo}>iFeeder</ThemedText>
         <TouchableOpacity onPress={() => router.push('/notification')} style={styles.headerSide}>
@@ -69,9 +73,20 @@ const SettingsScreen = () => {
         </View>
 
         {/* PRZYCISK LOGOUT (Opcjonalny dodatek dla pełnego designu) */}
-        <TouchableOpacity style={styles.logoutBtn}>
-          <Text style={styles.logoutText}>Log out</Text>
-        </TouchableOpacity>
+        <TouchableOpacity
+     style={styles.logoutBtn}
+     onPress={async () => {
+       try {
+         await signOut(auth);
+         // Nie musisz robić router.push!
+         // Główny plik _layout.tsx sam zauważy wylogowanie i natychmiast ukryje pasek i pokaze login screen.
+       } catch (error) {
+         Alert.alert('Błąd', 'Nie udało się wylogować.');
+       }
+     }}
+   >
+     <Text style={styles.logoutText}>Log out</Text>
+   </TouchableOpacity>
 
       </ScrollView>
     </ThemedView>
@@ -87,7 +102,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingTop: 50,
     paddingBottom: 15,
     paddingHorizontal: 20,
     backgroundColor: 'white',

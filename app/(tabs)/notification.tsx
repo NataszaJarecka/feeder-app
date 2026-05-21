@@ -1,12 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { Dimensions, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ThemedText } from '../../components/themed-text';
 import { ThemedView } from '../../components/themed-view';
 
 const { width } = Dimensions.get('window');
 
 const NotificationsScreen = () => {
+  const insets = useSafeAreaInsets();
   // Przykładowe dane powiadomień
   const notifications = [
     { id: '1', time: '10:00', type: 'pet', name: 'Hans', msg: "hasn't finished a meal!", img: require('@/assets/images/dog-photo.jpg') },
@@ -18,7 +20,7 @@ const NotificationsScreen = () => {
   return (
     <ThemedView style={styles.container}>
       {/* HEADER */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 15 }]}>
         <View style={styles.headerSide} />
         <ThemedText style={styles.logo}>iFeeder</ThemedText>
         <TouchableOpacity style={styles.headerSide}>
@@ -78,7 +80,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingTop: 50,
     paddingBottom: 15,
     paddingHorizontal: 20,
     backgroundColor: 'white',

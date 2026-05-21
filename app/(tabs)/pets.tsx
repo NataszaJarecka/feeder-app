@@ -3,7 +3,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import React, { useCallback, useState } from 'react';
 import { ActivityIndicator, Image, Platform, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ThemedView } from '../../components/themed-view';
+import { auth } from '../../firebaseConfig'; // dostosuj ścieżkę
 
 // Importujemy logikę bazy danych i interfejs
 import { getPetsByUser, Pet } from '../../services/petService';
@@ -13,13 +15,16 @@ const ITEM_SIZE = 290;
 
 export default function MyPetsScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   // Stany dla listy zwierzaków i ładowania
   const [pets, setPets] = useState<Pet[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 
   // Szukamy zwierzaków przypisanych do użytkownika "user_1"
-  const currentUserId = "1";
+  const currentUserId = auth.currentUser ? auth.currentUser.uid : null;
+  console.log("ID obecnego użytkownika to:", currentUserId);
+
 
   // useFocusEffect wymusza pobranie danych z bazy ZA KAŻDYM RAZEM, gdy ekran staje się aktywny
   useFocusEffect(
@@ -57,7 +62,7 @@ export default function MyPetsScreen() {
   return (
     <ThemedView style={styles.container}>
       {/* --- HEADER --- */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
         <View style={{ width: 32 }} />
         <ThemedText style={styles.logo}>iFeeder</ThemedText>
         <TouchableOpacity onPress={() => router.push('/notification')}>
@@ -135,12 +140,12 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: 'white',
+    overflow: 'visible',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingTop: 50,
     paddingBottom: 15,
     paddingHorizontal: 20,
     backgroundColor: 'white',
@@ -149,6 +154,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 3,
+    minHeight: 60,
   },
   logo: {
     fontSize: 32,

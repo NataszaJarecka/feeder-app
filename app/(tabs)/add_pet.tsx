@@ -3,9 +3,12 @@ import * as ImagePicker from 'expo-image-picker'; // Importujemy picker od Expo
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { ActivityIndicator, Dimensions, Image, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ThemedText } from '../../components/themed-text';
 import { ThemedView } from '../../components/themed-view';
+import { auth } from '../../firebaseConfig'; // dostosuj ścieżkę
 import { addPet } from '../../services/petService';
+
 
 const { width } = Dimensions.get('window');
 
@@ -17,6 +20,7 @@ const collarOptions = [
 
 const AddPetScreen = () => {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [name, setName] = useState('');
 
   // ZMIANA: Zamiast boolean, przechowujemy tutaj uri wybranego pliku lub obiekt File
@@ -76,7 +80,7 @@ const AddPetScreen = () => {
       const petData = {
         name: name.trim(),
         collar: selectedCollar,
-        userId: '1', // Tutaj docelowo wstawisz ID zalogowanego usera z Firebase Auth
+        userId: auth.currentUser?.uid || null, // Tutaj docelowo wstawisz ID zalogowanego usera z Firebase Auth
       };
 
       // Wywołujemy naszą zmodyfikowaną funkcję.
@@ -95,7 +99,7 @@ const AddPetScreen = () => {
 
   return (
     <ThemedView style={styles.container}>
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 15 }]}>
         <TouchableOpacity onPress={() => router.push('/pets')} style={styles.headerSideLeft}>
           <Ionicons name="arrow-back" size={28} color="#000" />
         </TouchableOpacity>
@@ -192,7 +196,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingTop: 50,
     paddingBottom: 15,
     paddingHorizontal: 20,
     backgroundColor: 'white',

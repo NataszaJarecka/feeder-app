@@ -1,5 +1,4 @@
-import { useColorScheme } from '@/hooks/use-color-scheme';
-import React, { createContext, ReactNode, useContext, useEffect, useState } from 'react';
+import React, { createContext, ReactNode, useContext } from 'react';
 
 type ThemeContextType = {
   theme: 'light' | 'dark';
@@ -9,15 +8,11 @@ type ThemeContextType = {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const systemTheme = useColorScheme() ?? 'light';
-  const [theme, setTheme] = useState<'light' | 'dark'>(systemTheme);
-
-  useEffect(() => {
-    setTheme(systemTheme);
-  }, [systemTheme]);
+  // Force light mode only
+  const theme: 'light' | 'dark' = 'light';
 
   const toggleTheme = () => {
-    setTheme(prev => prev === 'light' ? 'dark' : 'light');
+    // Theme toggle disabled - always use light mode
   };
 
   return (

@@ -3,9 +3,10 @@ import * as ImagePicker from 'expo-image-picker';
 import { useGlobalSearchParams, useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Dimensions, Image, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ThemedText } from '../../components/themed-text';
 import { ThemedView } from '../../components/themed-view';
-import { deletePet, getPetById, updatePet } from '../../services/petService';
+import { deletePetWithMeals, getPetById, updatePet } from '../../services/petService';
 
 const { width } = Dimensions.get('window');
 
@@ -17,6 +18,7 @@ const collarOptions = [
 
 const EditPetScreen = () => {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   // ZABEZPIECZENIE: Pobieramy parametry na dwa sposoby, na wypadek gdyby lokalny search params był pusty
   const localParams = useLocalSearchParams<{ petId: string }>();
@@ -135,7 +137,7 @@ const EditPetScreen = () => {
           onPress: async () => {
             try {
               setIsSaving(true);
-              await deletePet(petId!);
+              await deletePetWithMeals(petId!);
               router.dismissAll();
               router.replace('/pets');
             } catch (err) {
@@ -281,7 +283,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingTop: 50,
     paddingBottom: 15,
     paddingHorizontal: 20,
     backgroundColor: 'white',

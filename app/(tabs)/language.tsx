@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { Dimensions, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ThemedText } from '../../components/themed-text';
 import { ThemedView } from '../../components/themed-view';
 
@@ -14,11 +15,12 @@ const languages = [
 
 const LanguageScreen = () => {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [selectedLanguage, setSelectedLanguage] = useState('en');
 
   return (
       <ThemedView style={styles.container}>
-           <View style={styles.header}>
+           <View style={[styles.header, { paddingTop: insets.top + 15 }]}>
              <TouchableOpacity onPress={() => router.push('/settings')} style={styles.headerSideLeft}>
                <Ionicons name="arrow-back" size={28} color="#000" />
              </TouchableOpacity>
@@ -70,7 +72,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingTop: 50,
     paddingBottom: 15,
     paddingHorizontal: 20,
     backgroundColor: 'white',

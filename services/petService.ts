@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, query, updateDoc, where } from 'firebase/firestore';
+import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, query, updateDoc, where, writeBatch } from 'firebase/firestore';
 import { db } from '../firebaseConfig'; // popraw ścieżkę w zależności od tego, gdzie zapiszesz plik
 
 // 1. Inicjalizacja klienta Supabase
@@ -178,12 +178,35 @@ export const updatePet = async (petId: string, updatedData: Partial<Omit<Pet, 'i
 };
 
 // Funkcja usuwania zwierzaka
-export const deletePet = async (petId: string): Promise<void> => {
+/**
+ * Usuwa zwierzaka oraz kaskadowo wszystkie jego posiłki z bazy danych
+ * @param petId ID zwierzaka, którego chcemy usunąć
+ */
+export const deletePetWithMeals = async (petId: string): Promise<void> => {
   try {
+    // KROK 1: Znajdź wszystkie posiłki przypisane do tego petId
+    const mealsRef = collection(db, 'meals'); // upewnij się, że tak nazywa się Twoja kolekcja posiłków
+    const q = query(mealsRef, where('petId', '==', petId));
+    const querySnapshot = await getDocs(q);
+
+    // Używamy mechanizmu Batch, aby usunąć wszystkie posiłki w jednej szybkiej operacji
+    const batch = writeBatch(db);
+
+    querySnapshot.forEach((mealDoc) => {
+      batch.delete(mealDoc.ref);
+    });
+
+    // Wykonujemy usunięcie wszystkich znalezionych posiłków
+    await batch.commit();
+    console.log(`Pomyślnie usunięto wszystkie posiłki dla zwierzaka: ${petId}`);
+
+    // KROK 2: Usuwamy samego zwierzaka z kolekcji "pets"
     const petDocRef = doc(db, 'pets', petId);
     await deleteDoc(petDocRef);
+    console.log(`Pomyślnie usunięto zwierzaka: ${petId}`);
+
   } catch (error) {
-    console.error("Błąd w deletePet:", error);
+    console.error("Błąd podczas kaskadowego usuwania zwierzaka i posiłków:", error);
     throw error;
   }
 };

@@ -1,35 +1,36 @@
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Modal, Platform, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Modal, Platform, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
+import { auth } from '../firebaseConfig'; // <-- DODANY IMPORT
 import { ThemedText } from './themed-text';
 
 // IMPORT SERWISÓW I TYPÓW
 import { Timestamp } from 'firebase/firestore';
-import { auth } from '../firebaseConfig'; // <-- DODANY IMPORT
-import { addMeal, NewMeal } from '../services/feedingService';
+import { deleteMeal, Meal, updateMeal } from '../services/feedingService';
 import { getPetsByUser, Pet } from '../services/petService';
 
-interface AddMealModalProps {
+interface EditMealModalProps {
   isVisible: boolean;
   onClose: () => void;
+  meal: Meal | null; // Przekazujemy aktualnie wybrany posiłek do edycji
 }
-//
-export function AddMealModal({ isVisible, onClose }: AddMealModalProps) {
+
+export function EditMealModal({ isVisible, onClose, meal }: EditMealModalProps) {
   // Stany dla dynamicznych zwierzaków z bazy
   const [pets, setPets] = useState<Pet[]>([]);
   const [selectedPet, setSelectedPet] = useState('');
   const [loadingPets, setLoadingPets] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const [date, setDate] = useState(new Date());
   const [showPicker, setShowPicker] = useState<'date' | 'time' | null>(null);
   const [portion, setPortion] = useState('50');
 
-  // Szukamy zwierzaków przypisanych do użytkownika "1"
   const currentUserId = auth.currentUser?.uid || null;
 
-  // Pobieranie zwierzaków użytkownika przy otwarciu modala
+  // 1. Pobieranie zwierzaków użytkownika przy otwarciu modala
   useEffect(() => {
     if (isVisible) {
       const fetchPets = async () => {
@@ -37,12 +38,8 @@ export function AddMealModal({ isVisible, onClose }: AddMealModalProps) {
         try {
           const fetchedPets = await getPetsByUser(currentUserId);
           setPets(fetchedPets);
-          // Jeśli znaleziono zwierzaki, zaznacz pierwszego z listy jako domyślnego
-          if (fetchedPets.length > 0) {
-            setSelectedPet(fetchedPets[0].id);
-          }
         } catch (error) {
-          console.error("Błąd podczas pobierania zwierzaków w modalu:", error);
+          console.error("Błąd podczas pobierania zwierzaków w modalu edycji:", error);
         } finally {
           setLoadingPets(false);
         }
@@ -50,6 +47,19 @@ export function AddMealModal({ isVisible, onClose }: AddMealModalProps) {
       fetchPets();
     }
   }, [isVisible]);
+
+  // 2. Ładowanie istniejących danych posiłku do stanów formularza
+  useEffect(() => {
+    if (isVisible && meal) {
+      setSelectedPet(meal.petId);
+      setPortion(meal.portionGrams.toString());
+
+      const mealDate = meal.timestamp && typeof meal.timestamp.toDate === 'function'
+        ? meal.timestamp.toDate()
+        : new Date(meal.timestamp);
+      setDate(mealDate);
+    }
+  }, [isVisible, meal]);
 
   const onDateChange = (event: any, selectedDate?: Date) => {
     if (Platform.OS === 'android') {
@@ -60,7 +70,9 @@ export function AddMealModal({ isVisible, onClose }: AddMealModalProps) {
     }
   };
 
+  // ZAPIS ZMIAN (UPDATE)
   const handleSave = async () => {
+    if (!meal) return;
     if (!selectedPet) {
       console.log("Nie wybrano żadnego zwierzaka");
       return;
@@ -68,28 +80,57 @@ export function AddMealModal({ isVisible, onClose }: AddMealModalProps) {
 
     setIsSaving(true);
     try {
-      // Przygotowujemy strukturę nowego posiłku
-      const newMealData: NewMeal = {
+      const updatedMealData: Partial<Meal> = {
         petId: selectedPet,
-        // Zamieniamy obiekt Date z komponentu pickerów na natywny Timestamp dla Firebase
         timestamp: Timestamp.fromDate(date),
         portionGrams: parseFloat(portion) || 0,
-        status: 'scheduled' // Domyślny status
       };
 
-      // Zapis do kolekcji 'feedings' (obsługiwany przez addMeal)
-      await addMeal(newMealData);
-
-      console.log("Pomyślnie zapisano posiłek w bazie!");
-      onClose(); // Zamykamy modal po sukcesie
+      await updateMeal(meal.id, updatedMealData);
+      console.log("Pomyślnie zaktualizowano posiłek!");
+      onClose();
     } catch (error) {
-      console.error("Błąd zapisu posiłku do bazy:", error);
+      console.error("Błąd aktualizacji posiłku:", error);
     } finally {
       setIsSaving(false);
     }
   };
 
-  // Funkcja pomocnicza dla wersji WEB
+  // USUWANIE POSIŁKU (DELETE)
+  const handleDelete = async () => {
+    if (!meal) return;
+
+    const performDelete = async () => {
+      setIsDeleting(true);
+      try {
+        await deleteMeal(meal.id);
+        console.log("Pomyślnie usunięto posiłek!");
+        onClose();
+      } catch (error) {
+        console.error("Błąd usuwania posiłku:", error);
+      } finally {
+        setIsDeleting(false);
+      }
+    };
+
+    // Obsługa potwierdzenia usuwania (Wersja WEB vs MOBILE)
+    if (Platform.OS === 'web') {
+      if (window.confirm("Are you sure you want to delete this meal?")) {
+        performDelete();
+      }
+    } else {
+      Alert.alert(
+        "Delete Meal",
+        "Are you sure you want to delete this scheduled meal?",
+        [
+          { text: "Cancel", style: "cancel" },
+          { text: "Delete", style: "destructive", onPress: performDelete }
+        ]
+      );
+    }
+  };
+
+  // Funkcje pomocnicze dla wersji WEB
   const handleWebDateChange = (e: any) => {
     const [year, month, day] = e.target.value.split('-').map(Number);
     const newDate = new Date(date);
@@ -108,10 +149,10 @@ export function AddMealModal({ isVisible, onClose }: AddMealModalProps) {
     <Modal animationType="fade" transparent={true} visible={isVisible} onRequestClose={onClose}>
       <View style={styles.modalOverlay}>
         <View style={styles.modalContent}>
-          <ThemedText style={styles.modalTitle} type="title">Add Meal</ThemedText>
+          <ThemedText style={styles.modalTitle} type="title">Edit Meal</ThemedText>
 
           <ScrollView showsVerticalScrollIndicator={false}>
-            {/* PETS - DYNAMICZNA LISTA Z BAZY */}
+            {/* PETS */}
             <ThemedText style={styles.label}>Pet</ThemedText>
 
             {loadingPets ? (
@@ -130,7 +171,7 @@ export function AddMealModal({ isVisible, onClose }: AddMealModalProps) {
               ))
             )}
 
-            {/* TIME (Wersja WEB vs MOBILE) */}
+            {/* TIME */}
             <ThemedText style={styles.label}>Time</ThemedText>
             <View style={styles.dateTimeContainer}>
               {Platform.OS === 'web' ? (
@@ -174,52 +215,41 @@ export function AddMealModal({ isVisible, onClose }: AddMealModalProps) {
                   onChangeText={setPortion}
                   keyboardType="numeric"
                   placeholderTextColor="#ddd"
-                  editable={!isSaving}
+                  editable={!isSaving && !isDeleting}
                 />
                 <ThemedText style={styles.whiteText}>g</ThemedText>
               </View>
             </View>
-
-            {/* SEKCIJA Z WYBOREM KOLORU ZOSTAŁA ZAKOMENTOWANA */}
-            {/* <ThemedText style={styles.label}>Colour</ThemedText>
-            <View style={styles.colorSelectionRow}>
-              {COLORS.map((color) => (
-                <TouchableOpacity
-                  key={color.name}
-                  style={[
-                    styles.colorOption,
-                    { backgroundColor: color.hex },
-                    selectedColor.name === color.name && styles.colorOptionSelected
-                  ]}
-                  onPress={() => setSelectedColor(color)}
-                >
-                  {selectedColor.name === color.name && (
-                    <Ionicons name="checkmark" size={16} color="white" />
-                  )}
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            <View style={[styles.orangeInput, styles.rowCenter, { marginTop: 10 }]}>
-              <View style={[styles.colorCircle, { backgroundColor: selectedColor.hex }]} />
-              <ThemedText style={[styles.whiteText, { marginLeft: 10 }]}>
-                {selectedColor.name}
-              </ThemedText>
-            </View>
-            */}
           </ScrollView>
 
-          <TouchableOpacity
-            style={[styles.doneButton, isSaving && { backgroundColor: '#fcd2b1' }]}
-            onPress={handleSave}
-            disabled={isSaving}
-          >
-            {isSaving ? (
-              <ActivityIndicator color="white" />
-            ) : (
-              <ThemedText style={styles.doneText}>Done</ThemedText>
-            )}
-          </TouchableOpacity>
+          {/* KONTENER PRZYCISKÓW AKCJI */}
+          <View style={styles.actionsContainer}>
+            {/* PRZYCISK USUWANIA (DELETE) */}
+            <TouchableOpacity
+              style={[styles.deleteButton, isDeleting && { backgroundColor: '#fcc7c7' }]}
+              onPress={handleDelete}
+              disabled={isSaving || isDeleting}
+            >
+              {isDeleting ? (
+                <ActivityIndicator color="white" />
+              ) : (
+                <ThemedText style={styles.deleteText}>Delete</ThemedText>
+              )}
+            </TouchableOpacity>
+
+            {/* PRZYCISK ZAPISU (DONE) */}
+            <TouchableOpacity
+              style={[styles.doneButton, isSaving && { backgroundColor: '#fcd2b1' }]}
+              onPress={handleSave}
+              disabled={isSaving || isDeleting}
+            >
+              {isSaving ? (
+                <ActivityIndicator color="white" />
+              ) : (
+                <ThemedText style={styles.doneText}>Save</ThemedText>
+              )}
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
 
@@ -288,12 +318,29 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center' },
   whiteText: { color: 'white', fontSize: 18, fontWeight: '500' },
   textInput: { color: 'white', fontSize: 18, fontWeight: '500', textAlign: 'center', minWidth: 40 },
+
+  // UKŁAD PRZYCISKÓW NA DOLE Modala
+  actionsContainer: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 25,
+  },
+  deleteButton: {
+    flex: 1,
+    backgroundColor: '#E76F51', // Czerwony/Ceglasty odcień pasujący do palety F4A261
+    borderRadius: 30,
+    padding: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  deleteText: { color: 'white', fontSize: 22, fontWeight: 'bold' },
   doneButton: {
+    flex: 1,
     backgroundColor: '#F4A261',
     borderRadius: 30,
     padding: 18,
-    marginTop: 25,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   doneText: { color: 'white', fontSize: 22, fontWeight: 'bold' },
 });

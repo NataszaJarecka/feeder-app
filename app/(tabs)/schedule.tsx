@@ -2,29 +2,34 @@ import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Image, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ThemedText } from '../../components/themed-text';
 import { ThemedView } from '../../components/themed-view';
 
-// IMPORT MODALA
+// IMPORT MODALSTWÓW
 import { AddMealModal } from '../../components/add_meal';
+import { EditMealModal } from '../../components/edit_meal';
 
-// IMPORT SERWISÓW
+// IMPORT SERWISÓW I CONFIGU
+import { auth } from '../../firebaseConfig'; // <-- DODANY IMPORT AUTH
 import { getAllMealsByDate, Meal } from '../../services/feedingService';
 import { getPetById, Pet } from '../../services/petService';
 
 const HOUR_HEIGHT = 80;
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 
-// Komponent kafelka posiłku (pobiera dane zwierzaka w locie)
-const MealTile = ({ meal }: { meal: Meal }) => {
+interface MealTileProps {
+  meal: Meal;
+  onPress: (meal: Meal) => void;
+}
+
+const MealTile = ({ meal, onPress }: MealTileProps) => {
   const [pet, setPet] = useState<Pet | null>(null);
 
-  // Bezpiecznie sprawdzamy, czy timestamp to obiekt z Firebase (posiada funkcję toDate)
   const mealDate = meal.timestamp && typeof meal.timestamp.toDate === 'function'
     ? meal.timestamp.toDate()
     : new Date(meal.timestamp);
 
-  // Pobieramy dane zwierzaka na podstawie petId z posiłku
   useEffect(() => {
     const fetchPet = async () => {
       try {
@@ -39,7 +44,6 @@ const MealTile = ({ meal }: { meal: Meal }) => {
     }
   }, [meal.petId]);
 
-  // Obliczanie pozycji pionowej kafelka (HOUR_HEIGHT = 80)
   const hour = mealDate.getHours();
   const minutes = mealDate.getMinutes();
   const tilePosition = (hour * HOUR_HEIGHT) + (minutes / 60 * HOUR_HEIGHT);
@@ -50,12 +54,16 @@ const MealTile = ({ meal }: { meal: Meal }) => {
   });
 
   return (
-    <View style={[styles.mealTile, { top: tilePosition }]}>
+    <TouchableOpacity
+      style={[styles.mealTile, { top: tilePosition }]}
+      onPress={() => onPress(meal)}
+      activeOpacity={0.7}
+    >
       <Image
         source={
           pet?.image && pet.image.trim() !== ''
             ? { uri: pet.image }
-            : require('@/assets/images/dog_placeholder.png') // Twój domyślny placeholder
+            : require('@/assets/images/dog_placeholder.png')
         }
         style={styles.tilePetImage}
       />
@@ -63,41 +71,73 @@ const MealTile = ({ meal }: { meal: Meal }) => {
         <ThemedText style={styles.tilePetName}>{pet ? pet.name : 'Loading...'}</ThemedText>
         <ThemedText style={styles.tileTime}>{`${formattedTime} • ${meal.portionGrams}g`}</ThemedText>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 };
 
 export default function ScheduleScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { petId } = useLocalSearchParams<{ petId: string }>();
 
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [now, setNow] = useState(new Date());
   const [meals, setMeals] = useState<Meal[]>([]);
   const [loading, setLoading] = useState(false);
-  const [isModalVisible, setIsModalVisible] = useState(false);
 
-  // Zegar dla linii obecnego czasu
+  const [isAddModalVisible, setIsAddModalVisible] = useState(false);
+  const [isEditModalVisible, setIsEditModalVisible] = useState(false);
+  const [selectedMeal, setSelectedMeal] = useState<Meal | null>(null);
+
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 60000);
     return () => clearInterval(timer);
   }, []);
 
-  // Pobieranie posiłków przy zmianie daty
-  useEffect(() => {
-    const fetchAllAnimalsMeals = async () => {
-      setLoading(true);
-      try {
-        const dayMeals = await getAllMealsByDate(selectedDate);
-        console.log("Pobrane posiłki dla wszystkich zwierzaków:", dayMeals);
-        setMeals(dayMeals);
-      } catch (error) {
-        console.error("Błąd ładowania wszystkich posiłków do kalendarza:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
+  // FILTROWANIE POSIŁKÓW POD KONTEM ZALOGOWANEGO USERA
+  const fetchAllAnimalsMeals = async () => {
+    setLoading(true);
+    const currentUserId = auth.currentUser?.uid;
 
+    try {
+      // 1. Pobieramy wszystkie posiłki z bazy dla wybranej daty
+      const dayMeals = await getAllMealsByDate(selectedDate);
+
+      if (!currentUserId) {
+        setMeals([]);
+        setLoading(false);
+        return;
+      }
+
+      // 2. Filtrujemy posiłki asynchronicznie, sprawdzając właściciela każdego zwierzaka
+      const filteredMealsPromises = dayMeals.map(async (meal) => {
+        try {
+          const petData = await getPetById(meal.petId);
+          // Jeśli zwierzak istnieje i jego userId pasuje do zalogowanego usera, zostawiamy posiłek
+          if (petData && petData.userId === currentUserId) {
+            return meal;
+          }
+        } catch (e) {
+          console.error(`Nie udało się pobrać danych zwierzaka ${meal.petId} do filtracji:`, e);
+        }
+        return null;
+      });
+
+      const resolvedMeals = await Promise.all(filteredMealsPromises);
+      // Odrzucamy puste wartości (null) i zapisujemy przefiltrowane posiłki w stanie
+      const userMeals = resolvedMeals.filter((meal): meal is Meal => meal !== null);
+
+      console.log("Przefiltrowane posiłki dla zalogowanego użytkownika:", userMeals);
+      setMeals(userMeals);
+
+    } catch (error) {
+      console.error("Błąd ładowania posiłków użytkownika do kalendarza:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchAllAnimalsMeals();
   }, [selectedDate]);
 
@@ -107,6 +147,17 @@ export default function ScheduleScreen() {
     setSelectedDate(nextDay);
   };
 
+  const handleOpenEditModal = (meal: Meal) => {
+    setSelectedMeal(meal);
+    setIsEditModalVisible(true);
+  };
+
+  const handleCloseEditModal = () => {
+    setIsEditModalVisible(false);
+    setSelectedMeal(null);
+    fetchAllAnimalsMeals();
+  };
+
   const formattedDate = selectedDate.toLocaleDateString('en-GB', {
     weekday: 'long',
     day: 'numeric',
@@ -114,18 +165,16 @@ export default function ScheduleScreen() {
     year: 'numeric',
   });
 
-  // Pozycja czarnego paska obecnej godziny
   const currentHour = now.getHours();
   const currentMinutes = now.getMinutes();
   const indicatorPosition = (currentHour * HOUR_HEIGHT) + (currentMinutes / 60 * HOUR_HEIGHT);
 
-  // Sprawdzamy czy wybrany dzień na kalendarzu to "dzisiaj"
   const isToday = selectedDate.toDateString() === now.toDateString();
 
   return (
     <ThemedView style={styles.container}>
-      {/* HEADER - WYŚRODKOWANY BEZ STRZAŁKI WSTECZ */}
-      <View style={styles.header}>
+      {/* HEADER */}
+      <View style={[styles.header, { paddingTop: insets.top + 15 }]}>
         <View style={styles.headerSpacer} />
         <ThemedText style={styles.logo}>iFeeder</ThemedText>
         <TouchableOpacity onPress={() => router.push('/notification')} style={styles.headerIcon}>
@@ -134,7 +183,6 @@ export default function ScheduleScreen() {
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-        {/* Tło łapki */}
         <Image source={require('@/assets/images/paw-pattern.png')} style={[styles.bgPaw, styles.pawTopRight]} resizeMode="contain" />
         <Image source={require('@/assets/images/paw-pattern.png')} style={[styles.bgPaw, styles.pawMidLeft]} resizeMode="contain" />
 
@@ -150,6 +198,13 @@ export default function ScheduleScreen() {
             <Ionicons name="chevron-forward" size={24} color="black" />
           </TouchableOpacity>
         </View>
+
+        <TouchableOpacity
+          style={styles.weeklyViewButton}
+          onPress={() => router.push('/weekly_schedule')}
+        >
+          <ThemedText style={styles.weeklyViewButtonText}>Weekly View</ThemedText>
+        </TouchableOpacity>
 
         {loading ? (
           <ActivityIndicator size="large" color="#FF8C42" style={{ marginTop: 50 }} />
@@ -167,7 +222,7 @@ export default function ScheduleScreen() {
 
             {/* DYNAMICZNE KAFELKI POSIŁKÓW */}
             {meals.map((meal) => (
-              <MealTile key={meal.id} meal={meal} />
+              <MealTile key={meal.id} meal={meal} onPress={handleOpenEditModal} />
             ))}
 
             {/* CZARNY PASEK OBECNEJ GODZINY */}
@@ -184,12 +239,22 @@ export default function ScheduleScreen() {
 
       {/* MODAL DODAWANIA */}
       <AddMealModal
-        isVisible={isModalVisible}
-        onClose={() => setIsModalVisible(false)}
+        isVisible={isAddModalVisible}
+        onClose={() => {
+          setIsAddModalVisible(false);
+          fetchAllAnimalsMeals();
+        }}
       />
 
-      {/* FAB BUTTON */}
-      <TouchableOpacity style={styles.fab} onPress={() => setIsModalVisible(true)}>
+      {/* MODAL EDYCJI I USUWANIA */}
+      <EditMealModal
+        isVisible={isEditModalVisible}
+        meal={selectedMeal}
+        onClose={handleCloseEditModal}
+      />
+
+      {/* FAB BUTTON (DODAWANIE) */}
+      <TouchableOpacity style={styles.fab} onPress={() => setIsAddModalVisible(true)}>
         <Ionicons name="add" size={40} color="white" />
       </TouchableOpacity>
     </ThemedView>
@@ -197,170 +262,32 @@ export default function ScheduleScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: 'white',
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingTop: 50,
-    paddingBottom: 15,
-    paddingHorizontal: 20,
-    backgroundColor: 'white',
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-  },
-  headerSpacer: {
-    width: 40,
-  },
-  headerIcon: {
-    width: 40,
-    alignItems: 'flex-end',
-    justifyContent: 'center',
-  },
-  logo: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    fontStyle: 'italic',
-    textAlign: 'center',
-    flex: 1,
-  },
-  scrollContent: {
-    paddingBottom: 120,
-  },
-  bgPaw: {
-    position: 'absolute',
-    width: 200,
-    height: 200,
-    opacity: 0.6,
-    zIndex: -1,
-  },
+  container: { flex: 1, backgroundColor: 'white' },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 15, paddingHorizontal: 20, backgroundColor: 'white', elevation: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 3 },
+  headerSpacer: { width: 40 },
+  headerIcon: { width: 40, alignItems: 'flex-end', justifyContent: 'center' },
+  logo: { fontSize: 32, fontWeight: 'bold', fontStyle: 'italic', textAlign: 'center', flex: 1 },
+  scrollContent: { paddingBottom: 120 },
+  bgPaw: { position: 'absolute', width: 200, height: 200, opacity: 0.6, zIndex: -1 },
   pawTopRight: { top: 10, right: 20, transform: [{ rotate: '15deg' }] },
   pawMidLeft: { top: 250, left: 20, transform: [{ rotate: '-10deg' }] },
-  pageTitle: {
-    fontSize: 42,
-    textAlign: 'center',
-    marginTop: 30,
-    marginBottom: 20,
-    fontWeight: '400',
-    color: '#000',
-  },
-  dateSelector: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginVertical: 20,
-    gap: 15,
-  },
-  dateText: {
-    fontSize: 20,
-    fontWeight: '500',
-  },
-  timelineContainer: {
-    paddingLeft: 10,
-    paddingRight: 20,
-    position: 'relative',
-  },
-  hourRow: {
-    flexDirection: 'row',
-    height: HOUR_HEIGHT,
-  },
-  hourLabelContainer: {
-    width: 60,
-    alignItems: 'flex-end',
-    paddingRight: 10,
-    marginTop: -10,
-  },
-  hourLabel: {
-    fontSize: 14,
-    color: '#333',
-  },
-  hourSlot: {
-    flex: 1,
-    borderTopWidth: 1,
-    borderTopColor: '#f0f0f0',
-    backgroundColor: '#f9f9f9',
-    marginLeft: 5,
-    borderRadius: 10,
-    marginBottom: 5,
-  },
-  timeIndicator: {
-    position: 'absolute',
-    left: 55,
-    right: 15,
-    flexDirection: 'row',
-    alignItems: 'center',
-    zIndex: 10,
-  },
-  indicatorLine: {
-    flex: 1,
-    height: 2,
-    backgroundColor: 'black',
-  },
-  indicatorDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: 'black',
-  },
-  fab: {
-    position: 'absolute',
-    bottom: 30,
-    right: 30,
-    backgroundColor: '#FF8C42',
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    justifyContent: 'center',
-    alignItems: 'center',
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 5,
-  },
-  mealTile: {
-    position: 'absolute',
-    left: 75,
-    width: '75%',
-    height: 60,
-    backgroundColor: '#FFF3EA',
-    borderColor: '#FF8C42',
-    borderWidth: 1,
-    borderRadius: 15,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    zIndex: 99,
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
-  },
-  tilePetImage: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#ccc',
-  },
-  tileInfo: {
-    marginLeft: 12,
-    justifyContent: 'center',
-  },
-  tilePetName: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#000',
-  },
-  tileTime: {
-    fontSize: 13,
-    color: '#666',
-    marginTop: 2,
-  },
+  pageTitle: { fontSize: 42, textAlign: 'center', marginTop: 30, marginBottom: 20, fontWeight: '400', color: '#000' },
+  dateSelector: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 15, marginVertical: 15 },
+  dateText: { fontSize: 20, fontWeight: '500' },
+  weeklyViewButton: { backgroundColor: '#FFCBA4', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8, alignSelf: 'center', marginBottom: 15 },
+  weeklyViewButtonText: { fontSize: 13, fontWeight: '600', color: '#FF8C42' },
+  timelineContainer: { paddingLeft: 10, paddingRight: 15, position: 'relative' },
+  hourRow: { flexDirection: 'row', height: HOUR_HEIGHT },
+  hourLabelContainer: { width: 60, alignItems: 'flex-end', paddingRight: 10, marginTop: -10 },
+  hourLabel: { fontSize: 14, color: '#333' },
+  hourSlot: { flex: 1, borderTopWidth: 1, borderTopColor: '#f0f0f0', backgroundColor: '#f9f9f9', marginLeft: 5, borderRadius: 10, marginBottom: 5 },
+  timeIndicator: { position: 'absolute', left: 55, right: 15, flexDirection: 'row', alignItems: 'center', zIndex: 100 },
+  indicatorLine: { flex: 1, height: 2, backgroundColor: 'black' },
+  indicatorDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'black' },
+  fab: { position: 'absolute', bottom: 30, right: 30, backgroundColor: '#FF8C42', width: 70, height: 70, borderRadius: 35, justifyContent: 'center', alignItems: 'center', elevation: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 5 },
+  mealTile: { position: 'absolute', left: 75, right: 5, height: 60, backgroundColor: '#FFF3EA', borderColor: '#FF8C42', borderWidth: 1, borderRadius: 15, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, zIndex: 90, elevation: 5, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 3 },
+  tilePetImage: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#ccc' },
+  tileInfo: { marginLeft: 12, justifyContent: 'center', flex: 1 },
+  tilePetName: { fontSize: 16, fontWeight: 'bold', color: '#000' },
+  tileTime: { fontSize: 13, color: '#666', marginTop: 2 },
 });
