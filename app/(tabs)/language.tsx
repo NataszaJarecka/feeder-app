@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { Dimensions, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Dimensions, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native'; // <-- IMPORT ZWYKŁEGO TEXT JEST JUŻ NA MIEJSCU
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ThemedText } from '../../components/themed-text';
 import { ThemedView } from '../../components/themed-view';
@@ -19,21 +19,25 @@ const LanguageScreen = () => {
   const [selectedLanguage, setSelectedLanguage] = useState('en');
 
   return (
-      <ThemedView style={styles.container}>
-           <View style={[styles.header, { paddingTop: insets.top + 15 }]}>
-             <TouchableOpacity onPress={() => router.push('/settings')} style={styles.headerSideLeft}>
-               <Ionicons name="arrow-back" size={28} color="#000" />
-             </TouchableOpacity>
-             <ThemedText style={styles.logo}>iFeeder</ThemedText>
-             <View style={styles.headerSide} />
-           </View>
+    <ThemedView style={styles.container}>
+      {/* HEADER */}
+      <View style={[styles.header, { paddingTop: insets.top + 15 }]}>
+        <TouchableOpacity onPress={() => router.push('/settings')} style={styles.headerSideLeft}>
+          <Ionicons name="arrow-back" size={28} color="#000" />
+        </TouchableOpacity>
+        <ThemedText style={styles.logo}>iFeeder</ThemedText>
+        <View style={styles.headerSide} />
+      </View>
+
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        {/* TŁO - ŁAPY */}
         <Image source={require('@/assets/images/paw-pattern.png')} style={[styles.bgPaw, styles.pawTopRight]} resizeMode="contain" />
         <Image source={require('@/assets/images/paw-pattern.png')} style={[styles.bgPaw, styles.pawMidLeft]} resizeMode="contain" />
         <Image source={require('@/assets/images/paw-pattern.png')} style={[styles.bgPaw, styles.pawMidRight]} resizeMode="contain" />
         <Image source={require('@/assets/images/paw-pattern.png')} style={[styles.bgPaw, styles.pawBottomLeft]} resizeMode="contain" />
 
-        <ThemedText style={styles.title}>Language</ThemedText>
+        {/* POPRAWIONO: ZWYKŁY <Text> IDENTYCZNIE JAK NA EKRANIE SETTINGS, SCHEDULE I PETS */}
+        <Text style={styles.title}>Language</Text>
 
         <View style={styles.languageList}>
           {languages.map((language) => {
@@ -106,17 +110,20 @@ const styles = StyleSheet.create({
   pawMidLeft: { top: 250, left: 20, transform: [{ rotate: '-10deg' }] },
   pawMidRight: { top: 500, right: 30, transform: [{ rotate: '5deg' }] },
   pawBottomLeft: { top: 750, left: 20, transform: [{ rotate: '-20deg' }] },
+  // ZSYNCHRONIZOWANE Z USTAWIENIAMI: alignItems: 'center' ratuje czcionki przed ucinaniem brzegów
   scrollContent: {
     alignItems: 'center',
     paddingTop: 20,
     paddingBottom: 100,
   },
+  // IDENTYCZNE PARAMETRY JAK mainTitle W SETTINGS SCREEN
   title: {
     fontSize: 42,
     fontWeight: '400',
     marginTop: 30,
     marginBottom: 20,
     color: '#000',
+    textAlign: 'center',
   },
   subtitle: {
     fontSize: 16,

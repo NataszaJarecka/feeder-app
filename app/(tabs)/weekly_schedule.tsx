@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Dimensions, Image, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Dimensions, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ThemedText } from '../../components/themed-text';
 import { ThemedView } from '../../components/themed-view';
@@ -9,15 +9,16 @@ import { ThemedView } from '../../components/themed-view';
 // IMPORT MODALSTWÓW I SERWISÓW
 import { AddMealModal } from '../../components/add_meal';
 import { EditMealModal } from '../../components/edit_meal';
-import { auth } from '../../firebaseConfig'; // <-- DODANY IMPORT AUTH
+import { auth } from '../../firebaseConfig';
 import { getAllMealsByDate, Meal } from '../../services/feedingService';
 import { getPetById, Pet } from '../../services/petService';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const HOUR_HEIGHT = 80;
-const TIME_LABEL_WIDTH = 45;
+const TIME_LABEL_WIDTH = 50;
 
-const COLUMN_WIDTH = (SCREEN_WIDTH - TIME_LABEL_WIDTH - 10) / 7;
+// Szeroka kolumna pozwalająca pomieścić pełne etykiety tekstowe
+const COLUMN_WIDTH = 130;
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 
 interface MealTileProps {
@@ -64,9 +65,10 @@ const MealTile = ({ meal, onPress }: MealTileProps) => {
         }
         style={styles.tilePetImage}
       />
+      {/* PRZYWRÓCONO: Identyczny układ i struktura jak w Twoim pierwszym kodzie */}
       <View style={styles.tileInfo}>
-        <ThemedText style={styles.tilePetName}>{pet ? pet.name : 'Loading...'}</ThemedText>
-        <ThemedText style={styles.tileTime}>{`${formattedTime} • ${meal.portionGrams}g`}</ThemedText>
+        <Text style={styles.tilePetName} numberOfLines={1}>{pet ? pet.name : 'Loading...'}</Text>
+        <Text style={styles.tileTime} numberOfLines={1}>{`${formattedTime} • ${meal.portionGrams}g`}</Text>
       </View>
     </TouchableOpacity>
   );
@@ -79,7 +81,6 @@ interface DayColumnProps {
   refreshTrigger: boolean;
 }
 
-// Komponent pionowej kolumny dnia z dodanym filtrowaniem użytkownika
 const DayColumn = ({ date, now, onEditMeal, refreshTrigger }: DayColumnProps) => {
   const [meals, setMeals] = useState<Meal[]>([]);
   const [loading, setLoading] = useState(false);
@@ -90,7 +91,6 @@ const DayColumn = ({ date, now, onEditMeal, refreshTrigger }: DayColumnProps) =>
       const currentUserId = auth.currentUser?.uid;
 
       try {
-        // 1. Pobieramy wszystkie posiłki dla danej kolumny (dnia)
         const dayMeals = await getAllMealsByDate(date);
 
         if (!currentUserId) {
@@ -99,7 +99,6 @@ const DayColumn = ({ date, now, onEditMeal, refreshTrigger }: DayColumnProps) =>
           return;
         }
 
-        // 2. Filtrujemy posiłki na podstawie zalogowanego userId zwierzaka
         const filteredMealsPromises = dayMeals.map(async (meal) => {
           try {
             const petData = await getPetById(meal.petId);
@@ -221,7 +220,7 @@ export default function WeeklyGridScheduleScreen() {
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-        <ThemedText style={styles.pageTitle}>Schedule</ThemedText>
+        <Text style={styles.pageTitle}>Schedule</Text>
 
         {/* NAWIGACJA TYGODNI */}
         <View style={styles.weekNavigationGroup}>
@@ -241,49 +240,53 @@ export default function WeeklyGridScheduleScreen() {
           <ThemedText style={styles.dailyViewButtonText}>Daily View</ThemedText>
         </TouchableOpacity>
 
-        {/* NAGŁÓWEK DNI TYGODNIA */}
-        <View style={styles.stickyHeaderContainer}>
-          <View style={styles.timeLabelSpacer} />
-          <View style={styles.headerDaysWrapper}>
-            {weekDates.map((date, index) => {
-              const isToday = date.toDateString() === now.toDateString();
-              const dayName = date.toLocaleDateString('en-GB', { weekday: 'narrow' });
-              const dayNumber = date.getDate();
+        {/* PRZEWIJANA SIATKA HORYZONTALNA */}
+        <ScrollView horizontal={true} showsHorizontalScrollIndicator={false} bounces={false}>
+          <View style={styles.megaGridContainer}>
 
-              return (
-                <View key={index} style={[styles.headerDayCell, isToday && styles.headerDayCellToday]}>
-                  <ThemedText style={[styles.dayLabelText, isToday && styles.textOrange]}>{dayName}</ThemedText>
-                  <ThemedText style={[styles.dayNumberText, isToday && styles.textOrangeBold]}>{dayNumber}</ThemedText>
-                </View>
-              );
-            })}
-          </View>
-        </View>
+            {/* NAGŁÓWKI DNI */}
+            <View style={styles.stickyHeaderContainer}>
+              {weekDates.map((date, index) => {
+                const isToday = date.toDateString() === now.toDateString();
+                const dayName = date.toLocaleDateString('en-GB', { weekday: 'short' });
+                const dayNumber = date.getDate();
 
-        {/* GŁÓWNY OBSZAR SIATKI */}
-        <View style={styles.scheduleGridWrapper}>
-          {/* KOLUMNA GODZIN */}
-          <View style={styles.timeColumn}>
-            {HOURS.map((hour) => (
-              <View key={hour} style={styles.hourLabelRow}>
-                <ThemedText style={styles.hourLabelText}>{`${hour}:00`}</ThemedText>
+                return (
+                  <View key={index} style={[styles.headerDayCell, isToday && styles.headerDayCellToday]}>
+                    <ThemedText style={[styles.dayLabelText, isToday && styles.textOrange]}>{dayName}</ThemedText>
+                    <ThemedText style={[styles.dayNumberText, isToday && styles.textOrangeBold]}>{dayNumber}</ThemedText>
+                  </View>
+                );
+              })}
+            </View>
+
+            {/* INTEGRACJA OSI CZASU I KOLUMN */}
+            <View style={styles.scheduleGridWrapper}>
+              {/* KOLUMNA GODZIN */}
+              <View style={styles.timeColumn}>
+                {HOURS.map((hour) => (
+                  <View key={hour} style={styles.hourLabelRow}>
+                    <ThemedText style={styles.hourLabelText}>{`${hour}:00`}</ThemedText>
+                  </View>
+                ))}
               </View>
-            ))}
-          </View>
 
-          {/* 7 KOLUMN DNI TYGODNIA */}
-          <View style={styles.columnsContainer}>
-            {weekDates.map((date, index) => (
-              <DayColumn
-                key={index}
-                date={date}
-                now={now}
-                onEditMeal={handleOpenEditModal}
-                refreshTrigger={refreshTrigger}
-              />
-            ))}
+              {/* KONTENER KOLUMN */}
+              <View style={styles.columnsContainer}>
+                {weekDates.map((date, index) => (
+                  <DayColumn
+                    key={index}
+                    date={date}
+                    now={now}
+                    onEditMeal={handleOpenEditModal}
+                    refreshTrigger={refreshTrigger}
+                  />
+                ))}
+              </View>
+            </View>
+
           </View>
-        </View>
+        </ScrollView>
       </ScrollView>
 
       {/* MODAL DODAWANIA */}
@@ -308,31 +311,73 @@ const styles = StyleSheet.create({
   logo: { fontSize: 32, fontWeight: 'bold', fontStyle: 'italic', textAlign: 'center', flex: 1 },
   weekNavigationGroup: { flexDirection: 'row', alignItems: 'center', gap: 15, justifyContent: 'center', marginVertical: 15 },
   weekText: { fontSize: 20, fontWeight: '500', color: '#000' },
-  dailyViewButton: { backgroundColor: '#FFCBA4', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8, alignSelf: 'center', marginBottom: 15 },
+  dailyViewButton: { backgroundColor: '#FFCBA4', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8, alignSelf: 'center', marginBottom: 25 },
   dailyViewButtonText: { fontSize: 13, fontWeight: '600', color: '#FF8C42' },
   pageTitle: { fontSize: 42, textAlign: 'center', marginTop: 30, marginBottom: 15, fontWeight: '400', color: '#000' },
-  stickyHeaderContainer: { flexDirection: 'row', backgroundColor: '#fff', zIndex: 10, paddingHorizontal: 5 },
-  timeLabelSpacer: { width: TIME_LABEL_WIDTH, backgroundColor: 'white' },
-  headerDaysWrapper: { flexDirection: 'row', flex: 1 },
-  headerDayCell: { width: COLUMN_WIDTH, alignItems: 'center', paddingVertical: 8, borderWidth: 0.5, borderColor: '#e8e8e8', borderRadius: 8, marginHorizontal: 0.5 },
-  headerDayCellToday: { backgroundColor: '#FFF3EA', borderColor: '#FF8C42' },
+  scrollContent: { alignItems: 'center', paddingTop: 25, paddingBottom: 100 },
+
+  megaGridContainer: { flexDirection: 'column' },
+  stickyHeaderContainer: { flexDirection: 'row', paddingLeft: TIME_LABEL_WIDTH, backgroundColor: '#fff', zIndex: 10, paddingBottom: 10 },
+  headerDayCell: { width: COLUMN_WIDTH, alignItems: 'center', paddingVertical: 8, borderWidth: 0.5, borderColor: '#e8e8e8', borderRadius: 12, marginHorizontal: 3, backgroundColor: '#fdfdfd' },
+  headerDayCellToday: { backgroundColor: '#FFF3EA', borderColor: '#FF8C42', borderWidth: 1.5 },
   dayLabelText: { fontSize: 11, color: '#777', fontWeight: '600' },
-  dayNumberText: { fontSize: 15, fontWeight: '500', marginTop: 1, color: '#000' },
+  dayNumberText: { fontSize: 16, fontWeight: '600', marginTop: 2, color: '#000' },
   textOrange: { color: '#FF8C42' },
   textOrangeBold: { color: '#FF8C42', fontWeight: 'bold' },
-  scrollContent: { paddingTop: 25, paddingBottom: 100 },
-  scheduleGridWrapper: { flexDirection: 'row', paddingHorizontal: 5 },
-  timeColumn: { width: TIME_LABEL_WIDTH, alignItems: 'center' },
+
+  scheduleGridWrapper: { flexDirection: 'row' },
+  timeColumn: { width: TIME_LABEL_WIDTH, alignItems: 'center', backgroundColor: 'white', zIndex: 5 },
   hourLabelRow: { height: HOUR_HEIGHT, justifyContent: 'flex-start', paddingTop: 2 },
   hourLabelText: { fontSize: 11, color: '#777' },
-  columnsContainer: { flexDirection: 'row', flex: 1 },
-  gridColumn: { width: COLUMN_WIDTH, position: 'relative', borderLeftWidth: 0.5, borderLeftColor: '#e0e0e0', borderRightWidth: 0.5, borderRightColor: '#e0e0e0' },
-  hourGridSlot: { height: HOUR_HEIGHT, borderBottomWidth: 0.5, borderBottomColor: '#eaeaea', backgroundColor: '#fafafa' },
+  columnsContainer: { flexDirection: 'row' },
+
+  gridColumn: { width: COLUMN_WIDTH, position: 'relative', marginHorizontal: 3 },
+  hourGridSlot: { height: HOUR_HEIGHT, borderWidth: 0.5, borderColor: '#f0f0f0', backgroundColor: '#fafafa', borderRadius: 4, marginBottom: 1 },
   columnTimeIndicator: { position: 'absolute', left: 0, right: 0, height: 1.5, backgroundColor: '#FF8C42', zIndex: 100 },
-  mealTile: { position: 'absolute', left: 2, right: 2, height: 60, backgroundColor: '#FFF3EA', borderColor: '#FF8C42', borderWidth: 1, borderRadius: 15, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, zIndex: 90, elevation: 5, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 3 },
-  tilePetImage: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#ccc' },
-  tileInfo: { marginLeft: 12, justifyContent: 'center', flex: 1 },
-  tilePetName: { fontSize: 16, fontWeight: 'bold', color: '#000' },
-  tileTime: { fontSize: 13, color: '#666', marginTop: 2 },
+
+  // PRZYWRÓCONO: Styl kafelka z Twojego pierwszego kodu (flexDirection: 'row')
+  mealTile: {
+    position: 'absolute',
+    left: 2,
+    right: 2,
+    height: 60,
+    backgroundColor: '#FFF3EA',
+    borderColor: '#FF8C42',
+    borderWidth: 1,
+    borderRadius: 15,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    zIndex: 90,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3
+  },
+  // PRZYWRÓCONO: Oryginalny rozmiar obrazka i marginesy
+  tilePetImage: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#ccc'
+  },
+  // PRZYWRÓCONO: Oryginalna struktura informacji tekstowej
+  tileInfo: {
+    marginLeft: 12,
+    justifyContent: 'center',
+    flex: 1
+  },
+  tilePetName: {
+    fontSize: 14, // Zmniejszone z 16 na 14 dla bezpiecznego dopasowania w kolumnie poziomej
+    fontWeight: 'bold',
+    color: '#000'
+  },
+  tileTime: {
+    fontSize: 12, // Zmniejszone z 13 na 12 dla idealnej spójności w wierszu
+    color: '#666',
+    marginTop: 2
+  },
+
   fab: { position: 'absolute', bottom: 30, right: 30, backgroundColor: '#FF8C42', width: 70, height: 70, borderRadius: 35, justifyContent: 'center', alignItems: 'center', elevation: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 5 },
 });

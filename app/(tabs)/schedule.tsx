@@ -1,17 +1,16 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Image, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Dimensions, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native'; // <-- ZAPEWNIONY IMPORT DLA ZWYKŁEGO TEXT
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ThemedText } from '../../components/themed-text';
 import { ThemedView } from '../../components/themed-view';
-
 // IMPORT MODALSTWÓW
 import { AddMealModal } from '../../components/add_meal';
 import { EditMealModal } from '../../components/edit_meal';
 
 // IMPORT SERWISÓW I CONFIGU
-import { auth } from '../../firebaseConfig'; // <-- DODANY IMPORT AUTH
+import { auth } from '../../firebaseConfig';
 import { getAllMealsByDate, Meal } from '../../services/feedingService';
 import { getPetById, Pet } from '../../services/petService';
 
@@ -94,13 +93,11 @@ export default function ScheduleScreen() {
     return () => clearInterval(timer);
   }, []);
 
-  // FILTROWANIE POSIŁKÓW POD KONTEM ZALOGOWANEGO USERA
   const fetchAllAnimalsMeals = async () => {
     setLoading(true);
     const currentUserId = auth.currentUser?.uid;
 
     try {
-      // 1. Pobieramy wszystkie posiłki z bazy dla wybranej daty
       const dayMeals = await getAllMealsByDate(selectedDate);
 
       if (!currentUserId) {
@@ -109,11 +106,9 @@ export default function ScheduleScreen() {
         return;
       }
 
-      // 2. Filtrujemy posiłki asynchronicznie, sprawdzając właściciela każdego zwierzaka
       const filteredMealsPromises = dayMeals.map(async (meal) => {
         try {
           const petData = await getPetById(meal.petId);
-          // Jeśli zwierzak istnieje i jego userId pasuje do zalogowanego usera, zostawiamy posiłek
           if (petData && petData.userId === currentUserId) {
             return meal;
           }
@@ -124,7 +119,6 @@ export default function ScheduleScreen() {
       });
 
       const resolvedMeals = await Promise.all(filteredMealsPromises);
-      // Odrzucamy puste wartości (null) i zapisujemy przefiltrowane posiłki w stanie
       const userMeals = resolvedMeals.filter((meal): meal is Meal => meal !== null);
 
       console.log("Przefiltrowane posiłki dla zalogowanego użytkownika:", userMeals);
@@ -186,7 +180,8 @@ export default function ScheduleScreen() {
         <Image source={require('@/assets/images/paw-pattern.png')} style={[styles.bgPaw, styles.pawTopRight]} resizeMode="contain" />
         <Image source={require('@/assets/images/paw-pattern.png')} style={[styles.bgPaw, styles.pawMidLeft]} resizeMode="contain" />
 
-        <ThemedText style={styles.pageTitle}>Schedule</ThemedText>
+        {/* POPRAWIONO: ZWYKŁY <Text> IDENTYCZNIE JAK NA EKRANIE USTAWIEŃ */}
+        <Text style={styles.pageTitle}>Schedule</Text>
 
         {/* NAWIGACJA DATĄ */}
         <View style={styles.dateSelector}>
@@ -262,32 +257,193 @@ export default function ScheduleScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: 'white' },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 15, paddingHorizontal: 20, backgroundColor: 'white', elevation: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 3 },
-  headerSpacer: { width: 40 },
-  headerIcon: { width: 40, alignItems: 'flex-end', justifyContent: 'center' },
-  logo: { fontSize: 32, fontWeight: 'bold', fontStyle: 'italic', textAlign: 'center', flex: 1 },
-  scrollContent: { paddingBottom: 120 },
-  bgPaw: { position: 'absolute', width: 200, height: 200, opacity: 0.6, zIndex: -1 },
-  pawTopRight: { top: 10, right: 20, transform: [{ rotate: '15deg' }] },
-  pawMidLeft: { top: 250, left: 20, transform: [{ rotate: '-10deg' }] },
-  pageTitle: { fontSize: 42, textAlign: 'center', marginTop: 30, marginBottom: 20, fontWeight: '400', color: '#000' },
-  dateSelector: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 15, marginVertical: 15 },
-  dateText: { fontSize: 20, fontWeight: '500' },
-  weeklyViewButton: { backgroundColor: '#FFCBA4', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8, alignSelf: 'center', marginBottom: 15 },
-  weeklyViewButtonText: { fontSize: 13, fontWeight: '600', color: '#FF8C42' },
-  timelineContainer: { paddingLeft: 10, paddingRight: 15, position: 'relative' },
-  hourRow: { flexDirection: 'row', height: HOUR_HEIGHT },
-  hourLabelContainer: { width: 60, alignItems: 'flex-end', paddingRight: 10, marginTop: -10 },
-  hourLabel: { fontSize: 14, color: '#333' },
-  hourSlot: { flex: 1, borderTopWidth: 1, borderTopColor: '#f0f0f0', backgroundColor: '#f9f9f9', marginLeft: 5, borderRadius: 10, marginBottom: 5 },
-  timeIndicator: { position: 'absolute', left: 55, right: 15, flexDirection: 'row', alignItems: 'center', zIndex: 100 },
-  indicatorLine: { flex: 1, height: 2, backgroundColor: 'black' },
-  indicatorDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'black' },
-  fab: { position: 'absolute', bottom: 30, right: 30, backgroundColor: '#FF8C42', width: 70, height: 70, borderRadius: 35, justifyContent: 'center', alignItems: 'center', elevation: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 5 },
-  mealTile: { position: 'absolute', left: 75, right: 5, height: 60, backgroundColor: '#FFF3EA', borderColor: '#FF8C42', borderWidth: 1, borderRadius: 15, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, zIndex: 90, elevation: 5, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 3 },
-  tilePetImage: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#ccc' },
-  tileInfo: { marginLeft: 12, justifyContent: 'center', flex: 1 },
-  tilePetName: { fontSize: 16, fontWeight: 'bold', color: '#000' },
-  tileTime: { fontSize: 13, color: '#666', marginTop: 2 },
+  container: {
+    flex: 1,
+    backgroundColor: 'white'
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingBottom: 15,
+    paddingHorizontal: 20,
+    backgroundColor: 'white',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3
+  },
+  headerSpacer: {
+    width: 40
+  },
+  headerIcon: {
+    width: 40,
+    alignItems: 'flex-end',
+    justifyContent: 'center'
+  },
+  logo: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    fontStyle: 'italic',
+    textAlign: 'center',
+    flex: 1
+  },
+  scrollContent: {
+    alignItems: 'center',
+    paddingBottom: 120
+  },
+  bgPaw: {
+    position: 'absolute',
+    width: 200,
+    height: 200,
+    opacity: 0.6,
+    zIndex: -1
+  },
+  pawTopRight: {
+    top: 10,
+    right: 20,
+    transform: [{ rotate: '15deg' }]
+  },
+  pawMidLeft: {
+    top: 250,
+    left: 20,
+    transform: [{ rotate: '-10deg' }]
+  },
+  pageTitle: {
+    fontSize: 42,
+    fontWeight: '400',
+    marginTop: 30,
+    marginBottom: 40,
+    color: '#000',
+  },
+  dateSelector: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 25,
+    marginVertical: 15,
+    width: Dimensions.get('window').width * 0.85
+  },
+  dateText: {
+    fontSize: 20,
+    fontWeight: '500'
+  },
+  weeklyViewButton: {
+    backgroundColor: '#FFCBA4',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 8,
+    alignSelf: 'center',
+    marginBottom: 15
+  },
+  weeklyViewButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#FF8C42'
+  },
+  timelineContainer: {
+    width: Dimensions.get('window').width,
+    paddingLeft: 10,
+    paddingRight: 15,
+    position: 'relative'
+  },
+  hourRow: {
+    flexDirection: 'row',
+    height: HOUR_HEIGHT
+  },
+  hourLabelContainer: {
+    width: 60,
+    alignItems: 'flex-end',
+    paddingRight: 10,
+    marginTop: -10
+  },
+  hourLabel: {
+    fontSize: 14,
+    color: '#333'
+  },
+  hourSlot: {
+    flex: 1,
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
+    backgroundColor: '#f9f9f9',
+    marginLeft: 5,
+    borderRadius: 10,
+    marginBottom: 5
+  },
+  timeIndicator: {
+    position: 'absolute',
+    left: 55,
+    right: 15,
+    flexDirection: 'row',
+    alignItems: 'center',
+    zIndex: 100
+  },
+  indicatorLine: {
+    flex: 1,
+    height: 2,
+    backgroundColor: 'black'
+  },
+  indicatorDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: 'black'
+  },
+  fab: {
+    position: 'absolute',
+    bottom: 30,
+    right: 30,
+    backgroundColor: '#FF8C42',
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5
+  },
+  mealTile: {
+    position: 'absolute',
+    left: 75,
+    right: 5,
+    height: 60,
+    backgroundColor: '#FFF3EA',
+    borderColor: '#FF8C42',
+    borderWidth: 1,
+    borderRadius: 15,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    zIndex: 90,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3
+  },
+  tilePetImage: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#ccc'
+  },
+  tileInfo: {
+    marginLeft: 12,
+    justifyContent: 'center',
+    flex: 1
+  },
+  tilePetName: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#000'
+  },
+  tileTime: {
+    fontSize: 13,
+    color: '#666',
+    marginTop: 2
+  },
 });

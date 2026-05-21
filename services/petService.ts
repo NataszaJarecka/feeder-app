@@ -1,9 +1,21 @@
 import { createClient } from '@supabase/supabase-js';
-import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, query, updateDoc, where, writeBatch } from 'firebase/firestore';
-import { db } from '../firebaseConfig'; // popraw ścieżkę w zależności od tego, gdzie zapiszesz plik
+import {
+  addDoc,
+  collection,
+  deleteDoc,
+  doc,
+  getCountFromServer // <-- DODANY IMPORT DLA WYDAJNEGO ZLICZANIA
+  ,
+  getDoc,
+  getDocs,
+  query,
+  updateDoc,
+  where,
+  writeBatch
+} from 'firebase/firestore';
+import { db } from '../firebaseConfig';
 
 // 1. Inicjalizacja klienta Supabase
-// Te dane znajdziesz w panelu Supabase w Settings -> API
 const SUPABASE_URL = 'https://skprsjpylwpktvczmrkl.supabase.co'.trim();
 const SUPABASE_ANON_KEY = 'sb_publishable_Vcp4dKaoMGZXteoWbY-q2A_FMg9sTcy';
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -13,26 +25,21 @@ export interface Pet {
   id: string;
   name: string;
   collar: string;
-  image: string; // Tutaj ostatecznie w Firestore wyląduje tekstowy URL ze zdjęciem
+  image: string;
   userId: string;
 }
 
-// Typ dla nowego zwierzaka, który nie ma jeszcze nadanego ID z bazy danych
 export type NewPet = Omit<Pet, 'id'>;
 
 // Funkcja pobierająca zwierzaki przypisane do danego userId
 export const getPetsByUser = async (userId: string): Promise<Pet[]> => {
   try {
     const petsCollection = collection(db, 'pets');
-
-    // Tworzymy zapytanie z filtrem: gdzie pole 'userId' jest równe przekazanemu userId
     const q = query(petsCollection, where('userId', '==', userId));
-
     const querySnapshot = await getDocs(q);
     const petsList: Pet[] = [];
 
     querySnapshot.forEach((doc) => {
-      // Łączymy ID dokumentu z jego zawartością
       petsList.push({
         id: doc.id,
         ...(doc.data() as Omit<Pet, 'id'>)
@@ -48,9 +55,6 @@ export const getPetsByUser = async (userId: string): Promise<Pet[]> => {
 
 /**
  * Zmodyfikowana funkcja dodająca nowego zwierzaka do bazy danych Firestore.
- * @param petData Dane zwierzaka (name, collar, userId) BEZ linku image
- * @param imageFile Surowy plik typu File z inputu HTML
- * @returns Promise<Pet> Zwraca obiekt zwierzaka uzupełniony o wygenerowane id oraz publiczny url zdjęcia
  */
 export const addPet = async (petData: Omit<NewPet, 'image'>, imageFile: any): Promise<Pet> => {
   try {
@@ -60,10 +64,9 @@ export const addPet = async (petData: Omit<NewPet, 'image'>, imageFile: any): Pr
 
     let fileBody;
 
-    // Obsługa środowiska Web (localhost) oraz telefonu
     if (imageFile.uri.startsWith('blob:') || imageFile.uri.startsWith('http')) {
       const response = await fetch(imageFile.uri);
-      fileBody = await response.arrayBuffer(); // Konwersja na format bezpieczny dla przeglądarki
+      fileBody = await response.arrayBuffer();
     } else {
       const formData = new FormData();
       formData.append('file', {
@@ -74,11 +77,10 @@ export const addPet = async (petData: Omit<NewPet, 'image'>, imageFile: any): Pr
       fileBody = formData;
     }
 
-    // WYSYŁKA DO SUPABASE z wymuszeniem poprawnego typu (MIME type)
     const { data: uploadData, error: uploadError } = await supabase.storage
       .from('pet_pics')
       .upload(filePath, fileBody, {
-        contentType: imageFile.type || 'image/jpeg', // <-- TO ROZWIĄZUJE PROBLEM OCTET-STREAM
+        contentType: imageFile.type || 'image/jpeg',
         upsert: true
       });
 
@@ -86,14 +88,12 @@ export const addPet = async (petData: Omit<NewPet, 'image'>, imageFile: any): Pr
       throw new Error(`Błąd uploadu Supabase: ${uploadError.message}`);
     }
 
-    // Pobieranie publicznego linku URL z Supabase
     const { data } = supabase.storage
       .from('pet_pics')
       .getPublicUrl(filePath);
 
     const publicUrl = data.publicUrl;
 
-    // Zapis kompletnych danych (z poprawnym linkiem) do Firestore
     const fullPetData: NewPet = {
       ...petData,
       image: publicUrl
@@ -133,7 +133,6 @@ export const updatePet = async (petId: string, updatedData: Partial<Omit<Pet, 'i
   try {
     let imageUrl: string | undefined;
 
-    // Jeśli użytkownik wybrał nowe zdjęcie, wgrywamy je identycznie jak w addPet
     if (newImageFile) {
       const fileExt = newImageFile.name.split('.').pop();
       const uniqueFileName = `${updatedData.userId || '1'}-${Date.now()}.${fileExt}`;
@@ -166,7 +165,6 @@ export const updatePet = async (petId: string, updatedData: Partial<Omit<Pet, 'i
       imageUrl = data.publicUrl;
     }
 
-    // Aktualizacja w Firestore
     const petDocRef = doc(db, 'pets', petId);
     const finalData = imageUrl ? { ...updatedData, image: imageUrl } : updatedData;
 
@@ -177,30 +175,24 @@ export const updatePet = async (petId: string, updatedData: Partial<Omit<Pet, 'i
   }
 };
 
-// Funkcja usuwania zwierzaka
 /**
  * Usuwa zwierzaka oraz kaskadowo wszystkie jego posiłki z bazy danych
- * @param petId ID zwierzaka, którego chcemy usunąć
  */
 export const deletePetWithMeals = async (petId: string): Promise<void> => {
   try {
-    // KROK 1: Znajdź wszystkie posiłki przypisane do tego petId
-    const mealsRef = collection(db, 'meals'); // upewnij się, że tak nazywa się Twoja kolekcja posiłków
+    const mealsRef = collection(db, 'meals');
     const q = query(mealsRef, where('petId', '==', petId));
     const querySnapshot = await getDocs(q);
 
-    // Używamy mechanizmu Batch, aby usunąć wszystkie posiłki w jednej szybkiej operacji
     const batch = writeBatch(db);
 
     querySnapshot.forEach((mealDoc) => {
       batch.delete(mealDoc.ref);
     });
 
-    // Wykonujemy usunięcie wszystkich znalezionych posiłków
     await batch.commit();
     console.log(`Pomyślnie usunięto wszystkie posiłki dla zwierzaka: ${petId}`);
 
-    // KROK 2: Usuwamy samego zwierzaka z kolekcji "pets"
     const petDocRef = doc(db, 'pets', petId);
     await deleteDoc(petDocRef);
     console.log(`Pomyślnie usunięto zwierzaka: ${petId}`);
@@ -208,5 +200,25 @@ export const deletePetWithMeals = async (petId: string): Promise<void> => {
   } catch (error) {
     console.error("Błąd podczas kaskadowego usuwania zwierzaka i posiłków:", error);
     throw error;
+  }
+};
+
+/**
+ * NOWA FUNKCJA: Pobiera z serwera liczbę zwierzaków należących do użytkownika.
+ * Robi to bez pobierania całych dokumentów (bardzo wydajne rozwiązanie).
+ * @param userId ID zalogowanego użytkownika
+ * @returns Promise<number> Liczba posiadanych zwierzaków
+ */
+export const getPetsCountByUser = async (userId: string): Promise<number> => {
+  try {
+    const petsCollection = collection(db, 'pets');
+    const q = query(petsCollection, where('userId', '==', userId));
+
+    // Pobieramy tylko snapshot agregujący z serwera
+    const snapshot = await getCountFromServer(q);
+    return snapshot.data().count;
+  } catch (error) {
+    console.error("Błąd podczas zliczania zwierzaków użytkownika:", error);
+    return 0; // W razie błędu zwracamy bezpieczne 0
   }
 };

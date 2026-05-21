@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import React, { useCallback, useState } from 'react';
 import { ActivityIndicator, Dimensions, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ThemedText } from '../../components/themed-text';
@@ -11,6 +11,9 @@ import { signOut } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '../../firebaseConfig';
 
+// IMPORT FUNKCJI ZLICZAJĄCEJ Z TWOJEGO SERWISU ZWIERZAKÓW
+import { getPetsCountByUser } from '../../services/petService'; // <-- Dostosuj ścieżkę do pliku, gdzie masz addPet/updatePet
+
 const { width } = Dimensions.get('window');
 
 const AccountScreen = () => {
@@ -20,38 +23,54 @@ const AccountScreen = () => {
   // STANY DLA REALNYCH DANYCH
   const [username, setUsername] = useState('Loading...');
   const [email, setEmail] = useState('');
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [petsCount, setPetsCount] = useState<number>(0); // <-- NOWY STAN NA LICZBĘ ZWIERZAKÓW
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchUserData = async () => {
-      const currentUser = auth.currentUser;
+  // useFocusEffect automatycznie odświeża ekran przy każdym wejściu na zakładkę
+  useFocusEffect(
+    useCallback(() => {
+      const fetchUserData = async () => {
+        const currentUser = auth.currentUser;
 
-      if (currentUser) {
-        setEmail(currentUser.email || 'No email');
+        if (currentUser) {
+          setEmail(currentUser.email || 'No email');
 
-        try {
-          const userDocRef = doc(db, 'users', currentUser.uid);
-          const userDocSnap = await getDoc(userDocRef);
+          try {
+            // 1. Pobieranie danych profilu użytkownika
+            const userDocRef = doc(db, 'users', currentUser.uid);
+            const userDocSnap = await getDoc(userDocRef);
 
-          if (userDocSnap.exists()) {
-            const userData = userDocSnap.data();
-            setUsername(userData.username || 'Anonymous');
-          } else {
-            setUsername('User Profile');
+            if (userDocSnap.exists()) {
+              const userData = userDocSnap.data();
+              setUsername(userData.username || 'Anonymous');
+              setAvatarUrl(userData.image || null);
+            } else {
+              setUsername('User Profile');
+            }
+
+            // 2. Pobieranie rzeczywistej liczby zwierzaków za pomocą zoptymalizowanej funkcji
+            const count = await getPetsCountByUser(currentUser.uid);
+            setPetsCount(count);
+
+          } catch (error) {
+            console.error('Error fetching user data or pets count:', error);
+            setUsername('Error loading name');
+          } finally {
+            setLoading(false);
           }
-        } catch (error) {
-          console.error('Error fetching user document:', error);
-          setUsername('Error loading name');
-        } finally {
+        } else {
           setLoading(false);
         }
-      } else {
-        setLoading(false);
-      }
-    };
+      };
 
-    fetchUserData();
-  }, []);
+      fetchUserData();
+
+      return () => {
+        // Funkcja czyszcząca
+      };
+    }, [])
+  );
 
   const handleLogOut = async () => {
     try {
@@ -83,10 +102,13 @@ const AccountScreen = () => {
         <View style={styles.profileSection}>
           <View style={styles.avatarContainer}>
             <Image
-              source={require('@/assets/images/user_placeholder.png')} // Zmiana na lokalny plik z Twoich assets
+              source={
+                avatarUrl && avatarUrl.trim() !== ''
+                  ? { uri: avatarUrl }
+                  : require('@/assets/images/user_placeholder.png')
+              }
               style={styles.profileImage}
             />
-            {/* Przycisk edycji (badge z aparatem) został usunięty stąd */}
           </View>
 
           {loading ? (
@@ -99,11 +121,11 @@ const AccountScreen = () => {
           )}
         </View>
 
-        {/* JEDYNA STATYSTYKA - ZWIERZĘTA */}
+        {/* STATYSTYKA - ZWIERZĘTA (TERAZ DYNAMICZNA) */}
         <View style={styles.statsRow}>
           <View style={styles.statBox}>
-            <Text style={styles.statNumber}>2</Text>
-            <Text style={styles.statLabel}>Pets</Text>
+            <Text style={styles.statNumber}>{loading ? '...' : petsCount}</Text>
+            <Text style={styles.statLabel}>{petsCount === 1 ? 'Pet' : 'Pets'}</Text>
           </View>
         </View>
 
@@ -203,7 +225,7 @@ const styles = StyleSheet.create({
   },
   statsRow: {
     flexDirection: 'row',
-    width: width * 0.4, // Zmniejszyłem szerokość karty, żeby pojedyncza statystyka wyglądała zgrabnie i symetrycznie
+    width: width * 0.4,
     backgroundColor: '#fff',
     borderRadius: 25,
     marginTop: 30,

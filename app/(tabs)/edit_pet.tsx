@@ -6,10 +6,11 @@ import { ActivityIndicator, Alert, Dimensions, Image, ScrollView, StyleSheet, Te
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ThemedText } from '../../components/themed-text';
 import { ThemedView } from '../../components/themed-view';
+import { auth } from '../../firebaseConfig'; // <-- DODANY IMPORT
 import { deletePetWithMeals, getPetById, updatePet } from '../../services/petService';
 
 const { width } = Dimensions.get('window');
-
+//
 const collarOptions = [
   { id: 'blue', label: 'Blue collar', color: '#5FB4FF' },
   { id: 'orange', label: 'Orange collar', color: '#E99664' },
@@ -110,7 +111,7 @@ const EditPetScreen = () => {
       const updatedFields = {
         name: name.trim(),
         collar: selectedCollar,
-        userId: '1',
+        userId: auth.currentUser?.uid || null,
       };
 
       await updatePet(petId!, updatedFields, newSelectedPhoto || undefined);

@@ -2,10 +2,10 @@ import { ThemedText } from '@/components/themed-text';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import React, { useCallback, useState } from 'react';
-import { ActivityIndicator, Image, Platform, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Image, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native'; // <-- ZAPEWNIONY IMPORT DLA ZWYKŁEGO TEXT
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ThemedView } from '../../components/themed-view';
-import { auth } from '../../firebaseConfig'; // dostosuj ścieżkę
+import { auth } from '../../firebaseConfig';
 
 // Importujemy logikę bazy danych i interfejs
 import { getPetsByUser, Pet } from '../../services/petService';
@@ -21,10 +21,9 @@ export default function MyPetsScreen() {
   const [pets, setPets] = useState<Pet[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 
-  // Szukamy zwierzaków przypisanych do użytkownika "user_1"
+  // Szukamy zwierzaków przypisanych do użytkownika
   const currentUserId = auth.currentUser ? auth.currentUser.uid : null;
   console.log("ID obecnego użytkownika to:", currentUserId);
-
 
   // useFocusEffect wymusza pobranie danych z bazy ZA KAŻDYM RAZEM, gdy ekran staje się aktywny
   useFocusEffect(
@@ -74,7 +73,8 @@ export default function MyPetsScreen() {
         {/* Tło (Pazurki) */}
         <Image source={require('@/assets/images/paw-pattern.png')} style={[styles.bgPaw, styles.pawTopRight]} resizeMode="contain" />
 
-        <ThemedText style={styles.pageTitle}>My Pets</ThemedText>
+        {/* POPRAWIONO: ZWYKŁY <Text> IDENTYCZNIE JAK NA EKRANIE SETTINGS I SCHEDULE */}
+        <Text style={styles.pageTitle}>My Pets</Text>
 
         {/* Jeśli trwa ładowanie, pokazujemy kręciołek */}
         {loading ? (
@@ -161,16 +161,19 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontStyle: 'italic',
   },
+  // INSPIRACJA Z SETTINGS SCREEN: alignItems: 'center' uwalnia przestrzeń dla dużych liter
   scrollContent: {
+    alignItems: 'center',
     paddingBottom: 40,
   },
+  // IDENTYCZNE PARAMETRY JAK mainTitle W SETTINGS SCREEN
   pageTitle: {
     fontSize: 42,
+    fontWeight: '400',
     marginTop: 50,
     marginBottom: 40,
-    textAlign: 'center',
-    fontWeight: '400',
     color: '#000',
+    textAlign: 'center',
   },
   grid: {
     flexDirection: 'row',
