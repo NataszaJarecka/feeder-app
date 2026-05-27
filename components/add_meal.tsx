@@ -6,7 +6,9 @@ import { ThemedText } from './themed-text';
 
 // IMPORT SERWISÓW I TYPÓW
 import { Timestamp } from 'firebase/firestore';
-import { auth } from '../firebaseConfig'; // <-- DODANY IMPORT
+import { Colors } from '../constants/Colors';
+import { useAppTheme } from '../context/ThemeContext'; // <-- IMPORT KONTEKSTU MOTYWÓW
+import { auth } from '../firebaseConfig';
 import { addMeal, NewMeal } from '../services/feedingService';
 import { getPetsByUser, Pet } from '../services/petService';
 
@@ -14,9 +16,13 @@ interface AddMealModalProps {
   isVisible: boolean;
   onClose: () => void;
 }
-//
+
 export function AddMealModal({ isVisible, onClose }: AddMealModalProps) {
-  // Stany dla dynamicznych zwierzaków z bazy
+  // Pobieramy motyw aplikacji z Twojego kontekstu
+  const { currentTheme } = useAppTheme();
+  const currentColors = Colors[currentTheme];
+  const theme = currentTheme;
+
   const [pets, setPets] = useState<Pet[]>([]);
   const [selectedPet, setSelectedPet] = useState('');
   const [loadingPets, setLoadingPets] = useState(false);
@@ -26,10 +32,8 @@ export function AddMealModal({ isVisible, onClose }: AddMealModalProps) {
   const [showPicker, setShowPicker] = useState<'date' | 'time' | null>(null);
   const [portion, setPortion] = useState('50');
 
-  // Szukamy zwierzaków przypisanych do użytkownika "1"
   const currentUserId = auth.currentUser?.uid || null;
 
-  // Pobieranie zwierzaków użytkownika przy otwarciu modala
   useEffect(() => {
     if (isVisible) {
       const fetchPets = async () => {
@@ -37,7 +41,6 @@ export function AddMealModal({ isVisible, onClose }: AddMealModalProps) {
         try {
           const fetchedPets = await getPetsByUser(currentUserId);
           setPets(fetchedPets);
-          // Jeśli znaleziono zwierzaki, zaznacz pierwszego z listy jako domyślnego
           if (fetchedPets.length > 0) {
             setSelectedPet(fetchedPets[0].id);
           }
@@ -68,20 +71,16 @@ export function AddMealModal({ isVisible, onClose }: AddMealModalProps) {
 
     setIsSaving(true);
     try {
-      // Przygotowujemy strukturę nowego posiłku
       const newMealData: NewMeal = {
         petId: selectedPet,
-        // Zamieniamy obiekt Date z komponentu pickerów na natywny Timestamp dla Firebase
         timestamp: Timestamp.fromDate(date),
         portionGrams: parseFloat(portion) || 0,
-        status: 'scheduled' // Domyślny status
+        status: 'scheduled'
       };
 
-      // Zapis do kolekcji 'feedings' (obsługiwany przez addMeal)
       await addMeal(newMealData);
-
       console.log("Pomyślnie zapisano posiłek w bazie!");
-      onClose(); // Zamykamy modal po sukcesie
+      onClose();
     } catch (error) {
       console.error("Błąd zapisu posiłku do bazy:", error);
     } finally {
@@ -89,7 +88,6 @@ export function AddMealModal({ isVisible, onClose }: AddMealModalProps) {
     }
   };
 
-  // Funkcja pomocnicza dla wersji WEB
   const handleWebDateChange = (e: any) => {
     const [year, month, day] = e.target.value.split('-').map(Number);
     const newDate = new Date(date);
@@ -104,15 +102,32 @@ export function AddMealModal({ isVisible, onClose }: AddMealModalProps) {
     setDate(newDate);
   };
 
+  // Dynamiczne style dla wersji WEB inputów oparte na motywie
+  const webInputStyle: any = {
+    backgroundColor: '#F4A261',
+    border: 'none',
+    borderRadius: '20px',
+    color: 'white',
+    padding: '14px',
+    fontSize: '18px',
+    fontWeight: '500',
+    flex: 1,
+    textAlign: 'center',
+    cursor: 'pointer',
+    fontFamily: 'sans-serif',
+    outline: 'none',
+  };
+
   return (
     <Modal animationType="fade" transparent={true} visible={isVisible} onRequestClose={onClose}>
       <View style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
-          <ThemedText style={styles.modalTitle} type="title">Add Meal</ThemedText>
+        {/* Dynamiczne tło kontentu modala zależne od motywu */}
+        <View style={[styles.modalContent, { backgroundColor: theme === 'dark' ? '#1E2123' : 'white' }]}>
+          <ThemedText style={[styles.modalTitle, { color: currentColors.text }]} type="title">Add Meal</ThemedText>
 
           <ScrollView showsVerticalScrollIndicator={false}>
             {/* PETS - DYNAMICZNA LISTA Z BAZY */}
-            <ThemedText style={styles.label}>Pet</ThemedText>
+            <ThemedText style={[styles.label, { color: currentColors.text }]}>Pet</ThemedText>
 
             {loadingPets ? (
               <ActivityIndicator size="small" color="#F4A261" style={{ marginVertical: 10 }} />
@@ -123,15 +138,16 @@ export function AddMealModal({ isVisible, onClose }: AddMealModalProps) {
                 <TouchableOpacity key={pet.id} style={styles.radioRow} onPress={() => setSelectedPet(pet.id)}>
                   <Ionicons
                     name={selectedPet === pet.id ? "radio-button-on" : "radio-button-off"}
-                    size={24} color="black"
+                    size={24}
+                    color={selectedPet === pet.id ? "#F4A261" : (theme === 'dark' ? '#A0A0A0' : 'black')}
                   />
-                  <ThemedText style={styles.radioLabel}>{pet.name}</ThemedText>
+                  <ThemedText style={[styles.radioLabel, { color: currentColors.text }]}>{pet.name}</ThemedText>
                 </TouchableOpacity>
               ))
             )}
 
             {/* TIME (Wersja WEB vs MOBILE) */}
-            <ThemedText style={styles.label}>Time</ThemedText>
+            <ThemedText style={[styles.label, { color: currentColors.text }]}>Time</ThemedText>
             <View style={styles.dateTimeContainer}>
               {Platform.OS === 'web' ? (
                 <>
@@ -165,7 +181,7 @@ export function AddMealModal({ isVisible, onClose }: AddMealModalProps) {
             </View>
 
             {/* PORTION */}
-            <ThemedText style={styles.label}>Portion</ThemedText>
+            <ThemedText style={[styles.label, { color: currentColors.text }]}>Portion</ThemedText>
             <View style={styles.orangeInput}>
               <View style={styles.row}>
                 <TextInput
@@ -179,38 +195,13 @@ export function AddMealModal({ isVisible, onClose }: AddMealModalProps) {
                 <ThemedText style={styles.whiteText}>g</ThemedText>
               </View>
             </View>
-
-            {/* SEKCIJA Z WYBOREM KOLORU ZOSTAŁA ZAKOMENTOWANA */}
-            {/* <ThemedText style={styles.label}>Colour</ThemedText>
-            <View style={styles.colorSelectionRow}>
-              {COLORS.map((color) => (
-                <TouchableOpacity
-                  key={color.name}
-                  style={[
-                    styles.colorOption,
-                    { backgroundColor: color.hex },
-                    selectedColor.name === color.name && styles.colorOptionSelected
-                  ]}
-                  onPress={() => setSelectedColor(color)}
-                >
-                  {selectedColor.name === color.name && (
-                    <Ionicons name="checkmark" size={16} color="white" />
-                  )}
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            <View style={[styles.orangeInput, styles.rowCenter, { marginTop: 10 }]}>
-              <View style={[styles.colorCircle, { backgroundColor: selectedColor.hex }]} />
-              <ThemedText style={[styles.whiteText, { marginLeft: 10 }]}>
-                {selectedColor.name}
-              </ThemedText>
-            </View>
-            */}
           </ScrollView>
 
           <TouchableOpacity
-            style={[styles.doneButton, isSaving && { backgroundColor: '#fcd2b1' }]}
+            style={[
+              styles.doneButton,
+              isSaving && { backgroundColor: theme === 'dark' ? '#5E412C' : '#fcd2b1' }
+            ]}
             onPress={handleSave}
             disabled={isSaving}
           >
@@ -237,34 +228,23 @@ export function AddMealModal({ isVisible, onClose }: AddMealModalProps) {
   );
 }
 
-const webInputStyle: any = {
-  backgroundColor: '#F4A261',
-  border: 'none',
-  borderRadius: '20px',
-  color: 'white',
-  padding: '14px',
-  fontSize: '18px',
-  fontWeight: '500',
-  flex: 1,
-  textAlign: 'center',
-  cursor: 'pointer',
-  fontFamily: 'sans-serif',
-  outline: 'none',
-};
-
 const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    backgroundColor: 'rgba(0,0,0,0.5)', // Delikatnie zwiększony mrok w tle modala dla lepszego efektu odcięcia
     justifyContent: 'center',
     alignItems: 'center',
   },
   modalContent: {
     width: '88%',
-    backgroundColor: 'white',
     borderRadius: 35,
     padding: 25,
     maxHeight: '85%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.25,
+    shadowRadius: 15,
+    elevation: 10,
   },
   modalTitle: { fontSize: 32, textAlign: 'center', marginBottom: 20 },
   label: { fontSize: 22, marginTop: 15, marginBottom: 8, fontWeight: '500' },

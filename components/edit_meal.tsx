@@ -2,22 +2,28 @@ import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Modal, Platform, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
-import { auth } from '../firebaseConfig'; // <-- DODANY IMPORT
+import { auth } from '../firebaseConfig';
 import { ThemedText } from './themed-text';
 
 // IMPORT SERWISÓW I TYPÓW
 import { Timestamp } from 'firebase/firestore';
+import { Colors } from '../constants/Colors';
+import { useAppTheme } from '../context/ThemeContext'; // <-- IMPORT KONTEKSTU MOTYWÓW
 import { deleteMeal, Meal, updateMeal } from '../services/feedingService';
 import { getPetsByUser, Pet } from '../services/petService';
 
 interface EditMealModalProps {
   isVisible: boolean;
   onClose: () => void;
-  meal: Meal | null; // Przekazujemy aktualnie wybrany posiłek do edycji
+  meal: Meal | null;
 }
 
 export function EditMealModal({ isVisible, onClose, meal }: EditMealModalProps) {
-  // Stany dla dynamicznych zwierzaków z bazy
+  // Pobieramy motyw aplikacji z Twojego kontekstu
+  const { currentTheme } = useAppTheme();
+  const currentColors = Colors[currentTheme];
+  const theme = currentTheme;
+
   const [pets, setPets] = useState<Pet[]>([]);
   const [selectedPet, setSelectedPet] = useState('');
   const [loadingPets, setLoadingPets] = useState(false);
@@ -113,7 +119,6 @@ export function EditMealModal({ isVisible, onClose, meal }: EditMealModalProps) 
       }
     };
 
-    // Obsługa potwierdzenia usuwania (Wersja WEB vs MOBILE)
     if (Platform.OS === 'web') {
       if (window.confirm("Are you sure you want to delete this meal?")) {
         performDelete();
@@ -130,7 +135,6 @@ export function EditMealModal({ isVisible, onClose, meal }: EditMealModalProps) 
     }
   };
 
-  // Funkcje pomocnicze dla wersji WEB
   const handleWebDateChange = (e: any) => {
     const [year, month, day] = e.target.value.split('-').map(Number);
     const newDate = new Date(date);
@@ -145,15 +149,31 @@ export function EditMealModal({ isVisible, onClose, meal }: EditMealModalProps) 
     setDate(newDate);
   };
 
+  const webInputStyle: any = {
+    backgroundColor: '#F4A261',
+    border: 'none',
+    borderRadius: '20px',
+    color: 'white',
+    padding: '14px',
+    fontSize: '18px',
+    fontWeight: '500',
+    flex: 1,
+    textAlign: 'center',
+    cursor: 'pointer',
+    fontFamily: 'sans-serif',
+    outline: 'none',
+  };
+
   return (
     <Modal animationType="fade" transparent={true} visible={isVisible} onRequestClose={onClose}>
       <View style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
-          <ThemedText style={styles.modalTitle} type="title">Edit Meal</ThemedText>
+        {/* Dynamiczne tło kontentu modala zależne od motywu */}
+        <View style={[styles.modalContent, { backgroundColor: theme === 'dark' ? '#1E2123' : 'white' }]}>
+          <ThemedText style={[styles.modalTitle, { color: currentColors.text }]} type="title">Edit Meal</ThemedText>
 
           <ScrollView showsVerticalScrollIndicator={false}>
             {/* PETS */}
-            <ThemedText style={styles.label}>Pet</ThemedText>
+            <ThemedText style={[styles.label, { color: currentColors.text }]}>Pet</ThemedText>
 
             {loadingPets ? (
               <ActivityIndicator size="small" color="#F4A261" style={{ marginVertical: 10 }} />
@@ -164,15 +184,16 @@ export function EditMealModal({ isVisible, onClose, meal }: EditMealModalProps) 
                 <TouchableOpacity key={pet.id} style={styles.radioRow} onPress={() => setSelectedPet(pet.id)}>
                   <Ionicons
                     name={selectedPet === pet.id ? "radio-button-on" : "radio-button-off"}
-                    size={24} color="black"
+                    size={24}
+                    color={selectedPet === pet.id ? "#F4A261" : (theme === 'dark' ? '#A0A0A0' : 'black')}
                   />
-                  <ThemedText style={styles.radioLabel}>{pet.name}</ThemedText>
+                  <ThemedText style={[styles.radioLabel, { color: currentColors.text }]}>{pet.name}</ThemedText>
                 </TouchableOpacity>
               ))
             )}
 
             {/* TIME */}
-            <ThemedText style={styles.label}>Time</ThemedText>
+            <ThemedText style={[styles.label, { color: currentColors.text }]}>Time</ThemedText>
             <View style={styles.dateTimeContainer}>
               {Platform.OS === 'web' ? (
                 <>
@@ -206,7 +227,7 @@ export function EditMealModal({ isVisible, onClose, meal }: EditMealModalProps) 
             </View>
 
             {/* PORTION */}
-            <ThemedText style={styles.label}>Portion</ThemedText>
+            <ThemedText style={[styles.label, { color: currentColors.text }]}>Portion</ThemedText>
             <View style={styles.orangeInput}>
               <View style={styles.row}>
                 <TextInput
@@ -226,7 +247,10 @@ export function EditMealModal({ isVisible, onClose, meal }: EditMealModalProps) 
           <View style={styles.actionsContainer}>
             {/* PRZYCISK USUWANIA (DELETE) */}
             <TouchableOpacity
-              style={[styles.deleteButton, isDeleting && { backgroundColor: '#fcc7c7' }]}
+              style={[
+                styles.deleteButton,
+                isDeleting && { backgroundColor: theme === 'dark' ? '#5A2E25' : '#fcc7c7' }
+              ]}
               onPress={handleDelete}
               disabled={isSaving || isDeleting}
             >
@@ -237,9 +261,12 @@ export function EditMealModal({ isVisible, onClose, meal }: EditMealModalProps) 
               )}
             </TouchableOpacity>
 
-            {/* PRZYCISK ZAPISU (DONE) */}
+            {/* PRZYCISK ZAPISU (SAVE) */}
             <TouchableOpacity
-              style={[styles.doneButton, isSaving && { backgroundColor: '#fcd2b1' }]}
+              style={[
+                styles.doneButton,
+                isSaving && { backgroundColor: theme === 'dark' ? '#5E412C' : '#fcd2b1' }
+              ]}
               onPress={handleSave}
               disabled={isSaving || isDeleting}
             >
@@ -267,34 +294,23 @@ export function EditMealModal({ isVisible, onClose, meal }: EditMealModalProps) 
   );
 }
 
-const webInputStyle: any = {
-  backgroundColor: '#F4A261',
-  border: 'none',
-  borderRadius: '20px',
-  color: 'white',
-  padding: '14px',
-  fontSize: '18px',
-  fontWeight: '500',
-  flex: 1,
-  textAlign: 'center',
-  cursor: 'pointer',
-  fontFamily: 'sans-serif',
-  outline: 'none',
-};
-
 const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   modalContent: {
     width: '88%',
-    backgroundColor: 'white',
     borderRadius: 35,
     padding: 25,
     maxHeight: '85%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.25,
+    shadowRadius: 15,
+    elevation: 10,
   },
   modalTitle: { fontSize: 32, textAlign: 'center', marginBottom: 20 },
   label: { fontSize: 22, marginTop: 15, marginBottom: 8, fontWeight: '500' },
@@ -319,7 +335,6 @@ const styles = StyleSheet.create({
   whiteText: { color: 'white', fontSize: 18, fontWeight: '500' },
   textInput: { color: 'white', fontSize: 18, fontWeight: '500', textAlign: 'center', minWidth: 40 },
 
-  // UKŁAD PRZYCISKÓW NA DOLE Modala
   actionsContainer: {
     flexDirection: 'row',
     gap: 12,
@@ -327,7 +342,7 @@ const styles = StyleSheet.create({
   },
   deleteButton: {
     flex: 1,
-    backgroundColor: '#E76F51', // Czerwony/Ceglasty odcień pasujący do palety F4A261
+    backgroundColor: '#E76F51',
     borderRadius: 30,
     padding: 18,
     alignItems: 'center',

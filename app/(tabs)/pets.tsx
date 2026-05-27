@@ -2,30 +2,32 @@ import { ThemedText } from '@/components/themed-text';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import React, { useCallback, useState } from 'react';
-import { ActivityIndicator, Image, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native'; // <-- ZAPEWNIONY IMPORT DLA ZWYKŁEGO TEXT
+import { ActivityIndicator, Image, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ThemedView } from '../../components/themed-view';
+import { Colors } from '../../constants/Colors';
+import { useAppTheme } from '../../context/ThemeContext'; // <-- IMPORT KONTEKSTU MOTYWÓW
 import { auth } from '../../firebaseConfig';
 
-// Importujemy logikę bazy danych i interfejs
 import { getPetsByUser, Pet } from '../../services/petService';
 
-// Zmieniamy na stałą szerokość - dzięki temu na szerokim ekranie zmieści się ich więcej
 const ITEM_SIZE = 290;
 
 export default function MyPetsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
-  // Stany dla listy zwierzaków i ładowania
+  // ZMIANA: Pobieramy motyw aplikacji z Twojego kontekstu zamiast z systemu
+  const { currentTheme } = useAppTheme();
+  const currentColors = Colors[currentTheme];
+  const theme = currentTheme;
+
   const [pets, setPets] = useState<Pet[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 
-  // Szukamy zwierzaków przypisanych do użytkownika
   const currentUserId = auth.currentUser ? auth.currentUser.uid : null;
   console.log("ID obecnego użytkownika to:", currentUserId);
 
-  // useFocusEffect wymusza pobranie danych z bazy ZA KAŻDYM RAZEM, gdy ekran staje się aktywny
   useFocusEffect(
     useCallback(() => {
       let isMounted = true;
@@ -33,7 +35,7 @@ export default function MyPetsScreen() {
       if (Platform.OS !== 'web' || typeof window !== 'undefined') {
         const fetchUserPets = async () => {
           try {
-            setLoading(true); // Pokazuje kręciołek przy odświeżaniu danych
+            setLoading(true);
             const fetchedPets = await getPetsByUser(currentUserId);
             if (isMounted) {
               setPets(fetchedPets);
@@ -59,33 +61,49 @@ export default function MyPetsScreen() {
   );
 
   return (
-    <ThemedView style={styles.container}>
-      {/* --- HEADER --- */}
-      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
-        <View style={{ width: 32 }} />
-        <ThemedText style={styles.logo}>iFeeder</ThemedText>
-        <TouchableOpacity onPress={() => router.push('/notification')}>
-          <Ionicons name="notifications" size={28} color="black" />
+    <ThemedView style={[styles.container, { backgroundColor: currentColors.background }]}>
+      {/* HEADER Z DYNAMICZNYMI KOLORAMI I SPÓJNYM CIENIEM */}
+      <View style={[
+        styles.header,
+        {
+          paddingTop: insets.top + 15,
+          backgroundColor: theme === 'dark' ? '#1E2123' : '#FFFFFF',
+          shadowColor: theme === 'dark' ? '#FFFFFF' : '#000000',
+          shadowOpacity: theme === 'dark' ? 0.35 : 0.12,
+          shadowOffset: { width: 0, height: 3 },
+          shadowRadius: theme === 'dark' ? 5 : 4,
+          elevation: theme === 'dark' ? 10 : 4,
+        }
+      ]}>
+        <View style={styles.headerSide} />
+        <ThemedText style={[styles.logo, { color: currentColors.text }]}>iFeeder</ThemedText>
+
+        <TouchableOpacity
+          onPress={() => router.push('/notification')}
+          style={[styles.headerSide, { alignItems: 'flex-end' }]}
+        >
+          <Ionicons name="notifications" size={28} color={currentColors.text} />
         </TouchableOpacity>
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* Tło (Pazurki) */}
-        <Image source={require('@/assets/images/paw-pattern.png')} style={[styles.bgPaw, styles.pawTopRight]} resizeMode="contain" />
+        {/* TŁO - ŁAPA (Zmienia kolor na biały w trybie ciemnym) */}
+        <Image
+          source={require('@/assets/images/paw-pattern.png')}
+          style={[styles.bgPaw, styles.pawTopRight]}
+          resizeMode="contain"
+          tintColor={theme === 'dark' ? '#FFF' : undefined}
+        />
 
-        {/* POPRAWIONO: ZWYKŁY <Text> IDENTYCZNIE JAK NA EKRANIE SETTINGS I SCHEDULE */}
-        <Text style={styles.pageTitle}>My Pets</Text>
+        <Text style={[styles.pageTitle, { color: currentColors.text }]}>My Pets</Text>
 
-        {/* Jeśli trwa ładowanie, pokazujemy kręciołek */}
         {loading ? (
           <View style={styles.centerContainer}>
-            <ActivityIndicator size="large" color="#E99664" />
+            <ActivityIndicator size="large" color={currentColors.tint} />
           </View>
         ) : (
-          /* --- SIATKA (GRID) --- */
           <View style={styles.grid}>
 
-            {/* DYNAMICZNA LISTA ZWIERZAKÓW */}
             {pets.map((pet) => {
               const hasValidImage = pet.image && pet.image.trim() !== '' && pet.image.startsWith('http');
 
@@ -108,25 +126,29 @@ export default function MyPetsScreen() {
                             }
                           : require('@/assets/images/dog_placeholder.png')
                       }
-                      style={styles.petImage}
-                      // @ts-ignore - poprawka CORS pod przeglądarki internetowe
+                      style={[styles.petImage, { borderColor: currentColors.border, backgroundColor: currentColors.border }]}
+                      // @ts-ignore
                       crossOrigin="anonymous"
                       onError={(e) => {
                         console.warn(`Problem z załadowaniem obrazka dla ${pet.name}:`, e.nativeEvent.error);
                       }}
                     />
                   </TouchableOpacity>
-                  <ThemedText style={styles.petName}>{pet.name}</ThemedText>
+                  {/* ZMIANA: Dodano dynamiczny kolor dla podpisu zwierzaka */}
+                  <ThemedText style={[styles.petName, { color: currentColors.text }]}>{pet.name}</ThemedText>
                 </View>
               );
             })}
 
-            {/* PRZYCISK DODAWANIA (+) — Zawsze renderuje się na końcu listy */}
             <View style={styles.gridItem}>
-              <TouchableOpacity style={styles.addButton} onPress={() => router.push('/add_pet')}>
-                <Ionicons name="add" size={50} color="#555" />
+              <TouchableOpacity
+                style={[styles.addButton, { backgroundColor: theme === 'dark' ? '#26292B' : '#E8E8E8' }]}
+                onPress={() => router.push('/add_pet')}
+              >
+                <Ionicons name="add" size={50} color={currentColors.icon} />
               </TouchableOpacity>
-              <ThemedText style={styles.petName}>Add</ThemedText>
+              {/* ZMIANA: Dodano dynamiczny kolor dla podpisu "Add" */}
+              <ThemedText style={[styles.petName, { color: currentColors.text }]}>Add</ThemedText>
             </View>
 
           </View>
@@ -139,7 +161,6 @@ export default function MyPetsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: 'white',
     overflow: 'visible',
   },
   header: {
@@ -148,31 +169,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingBottom: 15,
     paddingHorizontal: 20,
-    backgroundColor: 'white',
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    minHeight: 60,
+    zIndex: 999,
   },
   logo: {
     fontSize: 32,
     fontWeight: 'bold',
     fontStyle: 'italic',
+    flex: 1,
+    textAlign: 'center',
   },
-  // INSPIRACJA Z SETTINGS SCREEN: alignItems: 'center' uwalnia przestrzeń dla dużych liter
   scrollContent: {
     alignItems: 'center',
     paddingBottom: 40,
   },
-  // IDENTYCZNE PARAMETRY JAK mainTitle W SETTINGS SCREEN
   pageTitle: {
     fontSize: 42,
     fontWeight: '400',
-    marginTop: 50,
+    marginTop: 30,
     marginBottom: 40,
-    color: '#000',
     textAlign: 'center',
   },
   grid: {
@@ -191,8 +205,6 @@ const styles = StyleSheet.create({
     height: ITEM_SIZE,
     borderRadius: ITEM_SIZE / 2,
     borderWidth: 1,
-    borderColor: '#eee',
-    backgroundColor: '#eee',
   },
   petName: {
     fontSize: 27,
@@ -203,7 +215,6 @@ const styles = StyleSheet.create({
     width: ITEM_SIZE,
     height: ITEM_SIZE,
     borderRadius: ITEM_SIZE / 2,
-    backgroundColor: '#E8E8E8',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -222,6 +233,11 @@ const styles = StyleSheet.create({
   centerContainer: {
     marginVertical: 60,
     alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerSide: {
+    width: 40,
+    height: 40,
     justifyContent: 'center',
   }
 });

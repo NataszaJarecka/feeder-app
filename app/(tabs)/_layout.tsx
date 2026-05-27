@@ -25,12 +25,21 @@ export default function TabLayout() {
         }}
       />
 
-       <Tabs.Screen
+      <Tabs.Screen
         name="weekly_schedule"
+        options={{
+          href: null,
+          title: 'Weekly Schedule',
+        }}
+      />
+
+      <Tabs.Screen
+        name="theme"
         options={{
           href: null,
         }}
       />
+
 
       <Tabs.Screen
         name="edit_pet"

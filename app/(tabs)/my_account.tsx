@@ -12,7 +12,9 @@ import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '../../firebaseConfig';
 
 // IMPORT FUNKCJI ZLICZAJĄCEJ Z TWOJEGO SERWISU ZWIERZAKÓW
-import { getPetsCountByUser } from '../../services/petService'; // <-- Dostosuj ścieżkę do pliku, gdzie masz addPet/updatePet
+import { Colors } from '../../constants/Colors';
+import { useAppTheme } from '../../context/ThemeContext'; // <-- IMPORT KONTEKSTU MOTYWÓW
+import { getPetsCountByUser } from '../../services/petService';
 
 const { width } = Dimensions.get('window');
 
@@ -20,14 +22,18 @@ const AccountScreen = () => {
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
+  // Pobieramy motyw aplikacji z Twojego kontekstu
+  const { currentTheme } = useAppTheme();
+  const currentColors = Colors[currentTheme];
+  const theme = currentTheme;
+
   // STANY DLA REALNYCH DANYCH
   const [username, setUsername] = useState('Loading...');
   const [email, setEmail] = useState('');
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
-  const [petsCount, setPetsCount] = useState<number>(0); // <-- NOWY STAN NA LICZBĘ ZWIERZAKÓW
+  const [petsCount, setPetsCount] = useState<number>(0);
   const [loading, setLoading] = useState(true);
 
-  // useFocusEffect automatycznie odświeża ekran przy każdym wejściu na zakładkę
   useFocusEffect(
     useCallback(() => {
       const fetchUserData = async () => {
@@ -49,7 +55,7 @@ const AccountScreen = () => {
               setUsername('User Profile');
             }
 
-            // 2. Pobieranie rzeczywistej liczby zwierzaków za pomocą zoptymalizowanej funkcji
+            // 2. Pobieranie rzeczywistej liczby zwierzaków
             const count = await getPetsCountByUser(currentUser.uid);
             setPetsCount(count);
 
@@ -81,22 +87,35 @@ const AccountScreen = () => {
   };
 
   return (
-    <ThemedView style={styles.container}>
-      {/* HEADER */}
-      <View style={[styles.header, { paddingTop: insets.top + 15 }]}>
-        <TouchableOpacity onPress={() => router.push('/settings')} style={styles.headerSideLeft}>
-          <Ionicons name="arrow-back" size={28} color="black" />
+    <ThemedView style={[styles.container, { backgroundColor: currentColors.background }]}>
+      {/* HEADER Z DYNAMICZNYMI KOLORAMI I SPÓJNYM CIENIEM */}
+      <View style={[
+        styles.header,
+        {
+          paddingTop: insets.top + 15,
+          backgroundColor: theme === 'dark' ? '#1E2123' : '#FFFFFF',
+          shadowColor: theme === 'dark' ? '#FFFFFF' : '#000000',
+          shadowOpacity: theme === 'dark' ? 0.35 : 0.12,
+          shadowOffset: { width: 0, height: 3 },
+          shadowRadius: theme === 'dark' ? 5 : 4,
+          elevation: theme === 'dark' ? 10 : 4,
+        }
+      ]}>
+        {/* Niezmieniony rodzaj strzałki ('arrow-back') ze zaktualizowanym kolorem */}
+        <TouchableOpacity onPress={() => router.push('/settings')} style={styles.headerSide}>
+          <Ionicons name="arrow-back" size={28} color={currentColors.text} />
         </TouchableOpacity>
-        <ThemedText style={styles.logo}>iFeeder</ThemedText>
+
+        <ThemedText style={[styles.logo, { color: currentColors.text }]}>iFeeder</ThemedText>
         <View style={styles.headerSide} />
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* TŁO - ŁAPY */}
-        <Image source={require('@/assets/images/paw-pattern.png')} style={[styles.bgPaw, styles.pawTopRight]} resizeMode="contain" />
-        <Image source={require('@/assets/images/paw-pattern.png')} style={[styles.bgPaw, styles.pawMidLeft]} resizeMode="contain" />
-        <Image source={require('@/assets/images/paw-pattern.png')} style={[styles.bgPaw, styles.pawMidRight]} resizeMode="contain" />
-        <Image source={require('@/assets/images/paw-pattern.png')} style={[styles.bgPaw, styles.pawBottomLeft]} resizeMode="contain" />
+        {/* TŁO - ŁAPY (Zmieniają kolor na biały w trybie ciemnym) */}
+        <Image source={require('@/assets/images/paw-pattern.png')} style={[styles.bgPaw, styles.pawTopRight]} resizeMode="contain" tintColor={theme === 'dark' ? '#FFF' : undefined} />
+        <Image source={require('@/assets/images/paw-pattern.png')} style={[styles.bgPaw, styles.pawMidLeft]} resizeMode="contain" tintColor={theme === 'dark' ? '#FFF' : undefined} />
+        <Image source={require('@/assets/images/paw-pattern.png')} style={[styles.bgPaw, styles.pawMidRight]} resizeMode="contain" tintColor={theme === 'dark' ? '#FFF' : undefined} />
+        <Image source={require('@/assets/images/paw-pattern.png')} style={[styles.bgPaw, styles.pawBottomLeft]} resizeMode="contain" tintColor={theme === 'dark' ? '#FFF' : undefined} />
 
         {/* PROFIL USERA */}
         <View style={styles.profileSection}>
@@ -107,7 +126,7 @@ const AccountScreen = () => {
                   ? { uri: avatarUrl }
                   : require('@/assets/images/user_placeholder.png')
               }
-              style={styles.profileImage}
+              style={[styles.profileImage, { borderColor: theme === 'dark' ? '#26292B' : '#E99664' }]}
             />
           </View>
 
@@ -115,28 +134,33 @@ const AccountScreen = () => {
             <ActivityIndicator size="small" color="#E99664" style={{ marginTop: 10 }} />
           ) : (
             <>
-              <Text style={styles.userName}>{username}</Text>
-              <Text style={styles.userEmail}>{email}</Text>
+              <Text style={[styles.userName, { color: currentColors.text }]}>{username}</Text>
+              <Text style={[styles.userEmail, { color: theme === 'dark' ? '#A0A0A0' : '#888' }]}>{email}</Text>
             </>
           )}
         </View>
 
-        {/* STATYSTYKA - ZWIERZĘTA (TERAZ DYNAMICZNA) */}
-        <View style={styles.statsRow}>
+        {/* STATYSTYKA - ZWIERZĘTA */}
+        <View style={[styles.statsRow, { backgroundColor: theme === 'dark' ? '#26292B' : '#fff' }]}>
           <View style={styles.statBox}>
             <Text style={styles.statNumber}>{loading ? '...' : petsCount}</Text>
-            <Text style={styles.statLabel}>{petsCount === 1 ? 'Pet' : 'Pets'}</Text>
+            <Text style={[styles.statLabel, { color: theme === 'dark' ? '#A0A0A0' : '#666' }]}>
+              {petsCount === 1 ? 'Pet' : 'Pets'}
+            </Text>
           </View>
         </View>
 
         {/* MENU PRZYCISKÓW */}
         <View style={styles.menuContainer}>
-          <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/edit_profile')}>
+          <TouchableOpacity
+            style={[styles.menuItem, { borderBottomColor: theme === 'dark' ? '#333' : '#F0F0F0' }]}
+            onPress={() => router.push('/edit_profile')}
+          >
             <View style={styles.menuIconCircle}>
               <Ionicons name="person" size={24} color="white" />
             </View>
-            <Text style={styles.menuText}>Edit Profile</Text>
-            <Ionicons name="chevron-forward" size={24} color="#CCC" />
+            <Text style={[styles.menuText, { color: currentColors.text }]}>Edit Profile</Text>
+            <Ionicons name="chevron-forward" size={24} color={theme === 'dark' ? '#555' : '#CCC'} />
           </TouchableOpacity>
 
           <TouchableOpacity style={[styles.menuItem, { marginTop: 20, borderBottomWidth: 0 }]} onPress={handleLogOut}>
@@ -154,7 +178,6 @@ const AccountScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
   },
   header: {
     flexDirection: 'row',
@@ -162,25 +185,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingBottom: 15,
     paddingHorizontal: 20,
-    backgroundColor: 'white',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 4,
+    zIndex: 999,
   },
+  // Zunifikowana szerokość 40 dla idealnego wyśrodkowania logo
   headerSide: {
-    width: 32,
-    alignItems: 'flex-end',
-  },
-  headerSideLeft: {
-    width: 32,
-    alignItems: 'flex-start',
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
   },
   logo: {
     fontSize: 32,
     fontWeight: 'bold',
     fontStyle: 'italic',
+    flex: 1,
+    textAlign: 'center',
   },
   bgPaw: {
     position: 'absolute',
@@ -211,22 +229,18 @@ const styles = StyleSheet.create({
     height: 130,
     borderRadius: 65,
     borderWidth: 4,
-    borderColor: '#E99664',
   },
   userName: {
     fontSize: 28,
     fontWeight: '600',
-    color: '#333',
   },
   userEmail: {
     fontSize: 16,
-    color: '#888',
     marginTop: 5,
   },
   statsRow: {
     flexDirection: 'row',
     width: width * 0.4,
-    backgroundColor: '#fff',
     borderRadius: 25,
     marginTop: 30,
     paddingVertical: 20,
@@ -247,7 +261,6 @@ const styles = StyleSheet.create({
   },
   statLabel: {
     fontSize: 14,
-    color: '#666',
     marginTop: 2,
   },
   menuContainer: {
@@ -260,7 +273,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 15,
     borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
   },
   menuIconCircle: {
     backgroundColor: '#E99664',
@@ -271,7 +283,6 @@ const styles = StyleSheet.create({
   menuText: {
     fontSize: 22,
     fontWeight: '300',
-    color: '#000',
   },
 });
 

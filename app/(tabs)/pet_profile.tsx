@@ -1,18 +1,19 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useLocalSearchParams, useRouter } from 'expo-router'; // 1. Dodajemy useLocalSearchParams
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Image, Platform, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Image, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ThemedText } from '../../components/themed-text';
 import { ThemedView } from '../../components/themed-view';
-// 2. Importujemy nową funkcję oraz interfejs
+import { Colors } from '../../constants/Colors';
+import { useAppTheme } from '../../context/ThemeContext'; // <-- IMPORT KONTEKSTU MOTYWÓW
 import { getPetById, Pet } from '../../services/petService';
 
 const ActionButton = ({ title, onPress }: { title: string; onPress?: () => void }) => (
   <TouchableOpacity style={styles.actionButton} onPress={onPress} activeOpacity={0.8}>
-    <ThemedText style={styles.actionButtonText} type="defaultSemiBold">
+    <Text style={styles.actionButtonText}>
       {title}
-    </ThemedText>
+    </Text>
   </TouchableOpacity>
 );
 
@@ -20,14 +21,16 @@ export default function PetProfileScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
-  // 3. Odbieramy petId przekazane w nawigacji
+  // Pobieramy motyw aplikacji z Twojego kontekstu
+  const { currentTheme } = useAppTheme();
+  const currentColors = Colors[currentTheme];
+  const theme = currentTheme;
+
   const { petId } = useLocalSearchParams<{ petId: string }>();
 
-  // 4. Definiujemy stany na dane i ładowanie
   const [pet, setPet] = useState<Pet | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
 
-  // Mapowanie identyfikatorów obroży na przyjazne dla oka nazwy
   const collarNames: Record<string, string> = {
     blue: 'Blue collar',
     orange: 'Orange collar',
@@ -56,77 +59,89 @@ export default function PetProfileScreen() {
     fetchPetData();
   }, [petId]);
 
-  // Jeśli dane się ładują, wyświetlamy kręciołek na środku ekranu
   if (loading) {
     return (
-      <ThemedView style={[styles.screenContainer, styles.centerContainer]}>
-        <ActivityIndicator size="large" color="#E99664" />
+      <ThemedView style={[styles.screenContainer, { backgroundColor: currentColors.background }, styles.centerContainer]}>
+        <ActivityIndicator size="large" color={currentColors.tint} />
       </ThemedView>
     );
   }
 
-  // Obsługa sytuacji awaryjnej (brak zwierzaka w bazie)
   if (!pet) {
     return (
-      <ThemedView style={[styles.screenContainer, styles.centerContainer]}>
-        <ThemedText type="subtitle">Pet not found</ThemedText>
+      <ThemedView style={[styles.screenContainer, { backgroundColor: currentColors.background }, styles.centerContainer]}>
+        <ThemedText style={{ color: currentColors.text }}>Pet not found</ThemedText>
         <ActionButton title="Go back" onPress={() => router.back()} />
       </ThemedView>
     );
   }
 
   return (
-    <ThemedView style={styles.screenContainer}>
-      {/* 1. GÓRNY PASEK (HEADER) */}
-      <View style={[styles.headerBar, { paddingTop: insets.top + 15 }]}>
+    <ThemedView style={[styles.screenContainer, { backgroundColor: currentColors.background }]}>
+
+      {/* 1. GÓRNY PASEK (HEADER) Z SYSTMEM DYNAMICZNEGO CIENIA */}
+      <View style={[
+        styles.headerBar,
+        {
+          paddingTop: insets.top + 15,
+          backgroundColor: theme === 'dark' ? '#1E2123' : '#FFFFFF',
+          shadowColor: theme === 'dark' ? '#FFFFFF' : '#000000',
+          shadowOpacity: theme === 'dark' ? 0.35 : 0.12,
+          shadowOffset: { width: 0, height: 3 },
+          shadowRadius: theme === 'dark' ? 5 : 4,
+          elevation: theme === 'dark' ? 10 : 4,
+        }
+      ]}>
         <TouchableOpacity style={styles.iconWrapper} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={26} color="black" />
+          <Ionicons name="arrow-back" size={26} color={currentColors.text} />
         </TouchableOpacity>
-        <ThemedText type="subtitle" style={styles.brandTitle}>iFeeder</ThemedText>
-        <TouchableOpacity style={styles.iconWrapper}>
-          <Ionicons name="notifications" size={26} color="black" />
+
+        <ThemedText style={[styles.brandTitle, { color: currentColors.text }]}>iFeeder</ThemedText>
+
+        <TouchableOpacity style={styles.iconWrapper} onPress={() => router.push('/notification')}>
+          <Ionicons name="notifications" size={26} color={currentColors.text} />
         </TouchableOpacity>
       </View>
 
       {/* 2. GŁÓWNY OBSZAR TREŚCI */}
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* Tło (Pazurki) */}
-        <Image source={require('@/assets/images/paw-pattern.png')} style={[styles.singlePaw, styles.pawTopRight]} resizeMode="contain" />
-        <Image source={require('@/assets/images/paw-pattern.png')} style={[styles.singlePaw, styles.pawMidLeft]} resizeMode="contain" />
-        <Image source={require('@/assets/images/paw-pattern.png')} style={[styles.singlePaw, styles.pawMidRight]} resizeMode="contain" />
-        <Image source={require('@/assets/images/paw-pattern.png')} style={[styles.singlePaw, styles.pawBottomLeft]} resizeMode="contain" />
+        {/* Tło (Pazurki zmieniające kolor na jasny w trybie ciemnym) */}
+        <Image source={require('@/assets/images/paw-pattern.png')} style={[styles.singlePaw, styles.pawTopRight]} resizeMode="contain" tintColor={theme === 'dark' ? '#FFF' : undefined} />
+        <Image source={require('@/assets/images/paw-pattern.png')} style={[styles.singlePaw, styles.pawMidLeft]} resizeMode="contain" tintColor={theme === 'dark' ? '#FFF' : undefined} />
+        <Image source={require('@/assets/images/paw-pattern.png')} style={[styles.singlePaw, styles.pawMidRight]} resizeMode="contain" tintColor={theme === 'dark' ? '#FFF' : undefined} />
+        <Image source={require('@/assets/images/paw-pattern.png')} style={[styles.singlePaw, styles.pawBottomLeft]} resizeMode="contain" tintColor={theme === 'dark' ? '#FFF' : undefined} />
 
         {/* TYTUŁ SEKCJI */}
         <View style={styles.sectionTitleRow}>
-          <ThemedText type="title" style={styles.sectionTitle}>Pet's profile</ThemedText>
+          <Text style={[styles.sectionTitle, { color: currentColors.text }]}>Pet's profile</Text>
           <TouchableOpacity
             style={styles.iconWrapper}
             onPress={() => router.push({
               pathname: '/edit_pet',
-              params: { petId: petId } // Przekazujemy ID zwierzaka dalej
+              params: { petId: petId }
             })}>
-            <Ionicons name="pencil-outline" size={26} color="#777" />
+            <Ionicons name="pencil-outline" size={26} color={theme === 'dark' ? '#AAA' : '#777'} />
           </TouchableOpacity>
         </View>
 
         {/* ZDJĘCIE PSA */}
         <View style={styles.photoContainer}>
-        <Image
+          <Image
             source={
-            pet.image && pet.image.trim() !== ''
-                ? { uri: pet.image} // Jeśli URL istnieje w bazie, ładujemy go z sieci
-                : require('@/assets/images/dog_placeholder.png') // Jeśli baza zwraca pusty URL, używamy lokalnego zdjęcia jako zapasowego
+              pet.image && pet.image.trim() !== ''
+                ? { uri: pet.image}
+                : require('@/assets/images/dog_placeholder.png')
             }
-            style={styles.profilePhoto}
-        />
+            style={[styles.profilePhoto, { borderColor: currentColors.border, backgroundColor: currentColors.border }]}
+          />
         </View>
 
-        {/* DANE PSA - Dynamiczne wartości wyciągnięte z obiektu 'pet' */}
+        {/* DANE PSA */}
         <View style={styles.petInfo}>
-          <ThemedText type="title" style={styles.petName}>{pet.name}</ThemedText>
-          <ThemedText style={styles.petDescription} type="default">
+          <Text style={[styles.petName, { color: currentColors.text }]}>{pet.name}</Text>
+          <Text style={[styles.petDescription, { color: theme === 'dark' ? '#A0A0A0' : '#777' }]}>
             {collarNames[pet.collar] || 'No collar assigned'}
-          </ThemedText>
+          </Text>
         </View>
 
         {/* PRZYCISKI AKCJI */}
@@ -139,11 +154,9 @@ export default function PetProfileScreen() {
   );
 }
 
-// --- STYLIZACJA (Uzupełniona o kontener środkujący dla ładowania) ---
 const styles = StyleSheet.create({
   screenContainer: {
     flex: 1,
-    paddingTop: Platform.OS === 'android' ? 30 : 0,
   },
   centerContainer: {
     justifyContent: 'center',
@@ -158,42 +171,28 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
     paddingHorizontal: 15,
     paddingBottom: 15,
+    zIndex: 999,
   },
   brandTitle: {
-    fontSize: 24,
+    fontSize: 32,
     fontWeight: 'bold',
     fontStyle: 'italic',
+    flex: 1,
+    textAlign: 'center',
   },
   singlePaw: {
     position: 'absolute',
     width: 200,
     height: 200,
     opacity: 0.5,
+    zIndex: -1,
   },
-  pawTopRight: {
-    top: 10,
-    right: 20,
-    transform: [{ rotate: '15deg' }],
-  },
-  pawMidLeft: {
-    top: 250,
-    left: 20,
-    transform: [{ rotate: '-10deg' }],
-  },
-  pawMidRight: {
-    top: 500,
-    right: 30,
-    transform: [{ rotate: '5deg' }],
-  },
-  pawBottomLeft: {
-    top: 750,
-    left: 20,
-    transform: [{ rotate: '-20deg' }],
-  },
+  pawTopRight: { top: 10, right: 20, transform: [{ rotate: '15deg' }] },
+  pawMidLeft: { top: 250, left: 20, transform: [{ rotate: '-10deg' }] },
+  pawMidRight: { top: 500, right: 30, transform: [{ rotate: '5deg' }] },
+  pawBottomLeft: { top: 750, left: 20, transform: [{ rotate: '-20deg' }] },
   sectionTitleRow: {
     flexDirection: 'row',
     justifyContent: 'center',
@@ -214,8 +213,6 @@ const styles = StyleSheet.create({
     height: 150,
     borderRadius: 75,
     borderWidth: 1,
-    borderColor: '#eee',
-    backgroundColor: '#f0f0f0',
   },
   petInfo: {
     alignItems: 'center',
@@ -225,7 +222,6 @@ const styles = StyleSheet.create({
     fontSize: 36,
   },
   petDescription: {
-    color: '#777',
     fontSize: 16,
     marginTop: 5,
   },
@@ -255,10 +251,12 @@ const styles = StyleSheet.create({
   actionButtonText: {
     color: 'white',
     fontSize: 18,
+    fontWeight: '600',
   },
+  // Zunifikowane wymiary przycisków bocznych (40x40) dla zachowania idealnego wycentrowania logo
   iconWrapper: {
-    padding: 5,
     width: 40,
+    height: 40,
     justifyContent: 'center',
     alignItems: 'center',
   },

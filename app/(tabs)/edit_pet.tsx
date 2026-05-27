@@ -6,11 +6,13 @@ import { ActivityIndicator, Alert, Dimensions, Image, ScrollView, StyleSheet, Te
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ThemedText } from '../../components/themed-text';
 import { ThemedView } from '../../components/themed-view';
-import { auth } from '../../firebaseConfig'; // <-- DODANY IMPORT
+import { Colors } from '../../constants/Colors';
+import { useAppTheme } from '../../context/ThemeContext'; // <-- IMPORT KONTEKSTU MOTYWÓW
+import { auth } from '../../firebaseConfig';
 import { deletePetWithMeals, getPetById, updatePet } from '../../services/petService';
 
 const { width } = Dimensions.get('window');
-//
+
 const collarOptions = [
   { id: 'blue', label: 'Blue collar', color: '#5FB4FF' },
   { id: 'orange', label: 'Orange collar', color: '#E99664' },
@@ -21,7 +23,10 @@ const EditPetScreen = () => {
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
-  // ZABEZPIECZENIE: Pobieramy parametry na dwa sposoby, na wypadek gdyby lokalny search params był pusty
+  // Pobieramy motyw aplikacji z Twojego kontekstu
+  const { currentTheme } = useAppTheme();
+  const currentColors = Colors[currentTheme];
+
   const localParams = useLocalSearchParams<{ petId: string }>();
   const globalParams = useGlobalSearchParams<{ petId: string }>();
   const petId = localParams.petId || globalParams.petId;
@@ -37,7 +42,6 @@ const EditPetScreen = () => {
 
   useEffect(() => {
     const fetchPetData = async () => {
-      // Logujemy, żeby sprawdzić w terminalu, czy ID w ogóle dotarło do tego ekranu
       console.log("=== START ŁADOWANIA EDYCJI ===");
       console.log("Odebrane petId:", petId);
 
@@ -71,7 +75,6 @@ const EditPetScreen = () => {
     fetchPetData();
   }, [petId]);
 
-  // Wybór nowego zdjęcia z galerii
   const pickImage = async () => {
     const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (permissionResult.granted === false) {
@@ -97,7 +100,6 @@ const EditPetScreen = () => {
     }
   };
 
-  // Aktualizacja danych
   const handleUpdate = async () => {
     if (!name.trim()) {
       setError('Please enter a pet name');
@@ -125,7 +127,6 @@ const EditPetScreen = () => {
     }
   };
 
-  // Usunięcie zwierzaka
   const handleDelete = () => {
     Alert.alert(
       "Delete Pet",
@@ -152,10 +153,9 @@ const EditPetScreen = () => {
     );
   };
 
-  // Jeśli jest błąd, pokazujemy go zamiast kręcącego się kółka
   if (error) {
     return (
-      <ThemedView style={[styles.container, styles.center]}>
+      <ThemedView style={[styles.container, { backgroundColor: currentColors.background }, styles.center]}>
         <Ionicons name="alert-circle-outline" size={50} color="#D94747" />
         <Text style={styles.errorText}>{error}</Text>
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
@@ -167,27 +167,43 @@ const EditPetScreen = () => {
 
   if (isLoadingData) {
     return (
-      <ThemedView style={[styles.container, styles.center]}>
-        <ActivityIndicator size="large" color="#E99664" />
+      <ThemedView style={[styles.container, { backgroundColor: currentColors.background }, styles.center]}>
+        <ActivityIndicator size="large" color={currentColors.tint} />
       </ThemedView>
     );
   }
 
   return (
-    <ThemedView style={styles.container}>
-      {/* --- HEADER --- */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.headerSideLeft}>
-          <Ionicons name="arrow-back" size={28} color="#000" />
+    <ThemedView style={[styles.container, { backgroundColor: currentColors.background }]}>
+      {/* HEADER Z DYNAMICZNYM TŁEM, KOLORAMI I SPÓJNYM CIENIEM */}
+      <View style={[
+        styles.header,
+        {
+          paddingTop: insets.top + 15,
+          backgroundColor: currentTheme === 'dark' ? '#1E2123' : '#FFFFFF',
+          shadowColor: currentTheme === 'dark' ? '#FFFFFF' : '#000000',
+          shadowOpacity: currentTheme === 'dark' ? 0.35 : 0.12,
+          shadowOffset: { width: 0, height: 3 },
+          shadowRadius: currentTheme === 'dark' ? 5 : 4,
+          elevation: currentTheme === 'dark' ? 10 : 4,
+        }
+      ]}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.headerSide}>
+          <Ionicons name="arrow-back" size={28} color={currentColors.text} />
         </TouchableOpacity>
-        <ThemedText style={styles.logo}>Edit Profile</ThemedText>
-        {/* Pusty element dla zachowania symetrii i idealnego wyśrodkowania tytułu */}
-        <View style={styles.headerSideRight} />
+
+        <ThemedText style={[styles.logo, { color: currentColors.text }]}>iFeeder</ThemedText>
+
+        <TouchableOpacity onPress={() => router.push('/notification')} style={[styles.headerSide, { alignItems: 'flex-end' }]}>
+          <Ionicons name="notifications" size={28} color={currentColors.text} />
+        </TouchableOpacity>
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        <View style={styles.form}>
+        {/* DYNAMICZNY TYTUŁ STRONY */}
+        <Text style={[styles.pageTitle, { color: currentColors.text }]}>Edit Pet</Text>
 
+        <View style={styles.form}>
           <View style={styles.imageSection}>
             <View style={styles.imagePreviewContainer}>
               <Image
@@ -198,7 +214,7 @@ const EditPetScreen = () => {
                       ? { uri: currentPhotoUrl }
                       : require('@/assets/images/dog_placeholder.png')
                 }
-                style={styles.imagePreview}
+                style={[styles.imagePreview, { borderColor: currentColors.border }]}
                 // @ts-ignore
                 crossOrigin="anonymous"
               />
@@ -216,8 +232,8 @@ const EditPetScreen = () => {
               value={name}
               onChangeText={setName}
               placeholder="Enter pet's name"
-              placeholderTextColor="#999"
-              style={styles.input}
+              placeholderTextColor={currentTheme === 'dark' ? '#7A7A7A' : '#999'}
+              style={[styles.input, { backgroundColor: currentTheme === 'dark' ? '#26292B' : '#F8F8F8', color: currentColors.text }]}
               editable={!isSaving}
             />
           </View>
@@ -229,21 +245,24 @@ const EditPetScreen = () => {
               return (
                 <TouchableOpacity
                   key={collar.id}
-                  style={[styles.radioRow, active && styles.radioRowActive]}
+                  style={[
+                    styles.radioRow,
+                    { borderColor: currentTheme === 'dark' ? '#444' : '#DDD' },
+                    active && (currentTheme === 'dark' ? { borderColor: '#E99664', backgroundColor: '#2D231E' } : styles.radioRowActive)
+                  ]}
                   onPress={() => setSelectedCollar(collar.id)}
                   activeOpacity={0.8}
                   disabled={isSaving}
                 >
-                  <View style={[styles.radioCircle, { borderColor: active ? collar.color : '#CCC' }]}>
+                  <View style={[styles.radioCircle, { borderColor: active ? collar.color : (currentTheme === 'dark' ? '#666' : '#CCC') }]}>
                     {active && <View style={[styles.radioDot, { backgroundColor: collar.color }]} />}
                   </View>
-                  <Text style={[styles.radioLabel, active && { color: collar.color }]}>{collar.label}</Text>
+                  <Text style={[styles.radioLabel, { color: currentColors.text }, active && { color: collar.color }]}>{collar.label}</Text>
                 </TouchableOpacity>
               );
             })}
           </View>
 
-          {/* PRZYCISK ZAPISU */}
           <TouchableOpacity
             style={[styles.saveButton, isSaving && styles.disabledButton]}
             onPress={handleUpdate}
@@ -253,7 +272,6 @@ const EditPetScreen = () => {
             {isSaving ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.saveButtonText}>Save Changes</Text>}
           </TouchableOpacity>
 
-          {/* DUŻY CZERWONY PRZYCISK USUWANIA */}
           <TouchableOpacity
             style={[styles.deleteButton, isSaving && styles.disabledButton]}
             onPress={handleDelete}
@@ -263,7 +281,6 @@ const EditPetScreen = () => {
             <Ionicons name="trash-outline" size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
             <Text style={styles.deleteButtonText}>Delete Pet</Text>
           </TouchableOpacity>
-
         </View>
       </ScrollView>
     </ThemedView>
@@ -273,7 +290,7 @@ const EditPetScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    overflow: 'visible',
   },
   center: {
     justifyContent: 'center',
@@ -286,37 +303,35 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingBottom: 15,
     paddingHorizontal: 20,
-    backgroundColor: 'white',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 4,
+    zIndex: 999,
   },
-  headerSideLeft: {
-    width: 50,
+  headerSide: {
+    width: 40,
     height: 40,
     justifyContent: 'center',
-    alignItems: 'flex-start',
-  },
-  headerSideRight: {
-    width: 50,
-    height: 40,
   },
   logo: {
-    fontSize: 24,
+    fontSize: 32,
     fontWeight: 'bold',
-    flex: 1,
+    fontStyle: 'italic',
     textAlign: 'center',
+    flex: 1,
+  },
+  pageTitle: {
+    fontSize: 42,
+    textAlign: 'center',
+    marginTop: 30,
+    marginBottom: 15,
+    fontWeight: '400',
   },
   scrollContent: {
     alignItems: 'center',
-    paddingTop: 30,
     paddingBottom: 80,
   },
   form: {
     width: '100%',
     maxWidth: width * 0.85,
+    marginTop: 15,
   },
   imageSection: {
     alignItems: 'center',
@@ -336,7 +351,6 @@ const styles = StyleSheet.create({
     borderRadius: 80,
     backgroundColor: '#F0F0F0',
     borderWidth: 2,
-    borderColor: '#E99664',
   },
   galleryButton: {
     flexDirection: 'row',
@@ -359,17 +373,14 @@ const styles = StyleSheet.create({
   inputLabel: {
     fontSize: 16,
     marginBottom: 10,
-    color: '#333',
     fontWeight: '500',
   },
   input: {
     width: '100%',
-    backgroundColor: '#F8F8F8',
     borderRadius: 18,
     paddingHorizontal: 16,
     paddingVertical: 14,
     fontSize: 16,
-    color: '#111',
   },
   section: {
     marginBottom: 25,
@@ -378,7 +389,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     marginBottom: 14,
     fontWeight: '600',
-    color: '#000',
   },
   radioRow: {
     flexDirection: 'row',
@@ -387,7 +397,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: '#DDD',
     marginBottom: 12,
   },
   radioRowActive: {
@@ -399,7 +408,6 @@ const styles = StyleSheet.create({
     height: 24,
     borderRadius: 12,
     borderWidth: 2,
-    borderColor: '#CCC',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 14,
@@ -411,7 +419,6 @@ const styles = StyleSheet.create({
   },
   radioLabel: {
     fontSize: 16,
-    color: '#000',
   },
   errorText: {
     color: '#D94747',

@@ -1,14 +1,15 @@
 import { Ionicons } from '@expo/vector-icons';
-import * as ImagePicker from 'expo-image-picker'; // Importujemy picker od Expo
+import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import React from 'react';
 import { ActivityIndicator, Dimensions, Image, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ThemedText } from '../../components/themed-text';
 import { ThemedView } from '../../components/themed-view';
-import { auth } from '../../firebaseConfig'; // dostosuj ścieżkę
+import { Colors } from '../../constants/Colors';
+import { useAppTheme } from '../../context/ThemeContext'; // <-- ZMIANA: Importujemy Twój kontekst motywu
+import { auth } from '../../firebaseConfig';
 import { addPet } from '../../services/petService';
-
 
 const { width } = Dimensions.get('window');
 
@@ -21,18 +22,18 @@ const collarOptions = [
 const AddPetScreen = () => {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const [name, setName] = useState('');
 
-  // ZMIANA: Zamiast boolean, przechowujemy tutaj uri wybranego pliku lub obiekt File
-  const [selectedPhoto, setSelectedPhoto] = useState<any>(null);
+  // ZMIANA: Pobieramy zapisany w aplikacji motyw (light/dark) z Twojego kontekstu
+  const { currentTheme } = useAppTheme();
+  const currentColors = Colors[currentTheme];
 
-  const [selectedCollar, setSelectedCollar] = useState(collarOptions[0].id);
-  const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [name, setName] = React.useState('');
+  const [selectedPhoto, setSelectedPhoto] = React.useState<any>(null);
+  const [selectedCollar, setSelectedCollar] = React.useState(collarOptions[0].id);
+  const [error, setError] = React.useState('');
+  const [isLoading, setIsLoading] = React.useState(false);
 
-  // Funkcja otwierająca galerię telefonu
   const pickImage = async () => {
-    // Prośba o uprawnienia do galerii
     const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
 
     if (permissionResult.granted === false) {
@@ -41,16 +42,15 @@ const AddPetScreen = () => {
     }
 
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'], // Interesują nas tylko zdjęcia
-      allowsEditing: true,    // Pozwala użytkownikowi przyciąć zdjęcie (np. w kwadrat)
+      mediaTypes: ['images'],
+      allowsEditing: true,
       aspect: [1, 1],
-      quality: 0.8,           // Kompresja, by zdjęcia nie ważyły po 10MB
+      quality: 0.8,
     });
 
     if (!result.canceled && result.assets && result.assets[0]) {
       const asset = result.assets[0];
 
-      // W React Native, aby przesłać plik przez FormData jako "File", tworzymy taki obiekt:
       const imageFile = {
         uri: asset.uri,
         name: asset.fileName || `pet_photo_${Date.now()}.jpg`,
@@ -76,18 +76,13 @@ const AddPetScreen = () => {
     setIsLoading(true);
 
     try {
-      // Przygotowujemy dane TEKSTOWE zwierzaka (zgodnie z Omit<NewPet, 'image'> z petService)
       const petData = {
         name: name.trim(),
         collar: selectedCollar,
-        userId: auth.currentUser?.uid || null, // Tutaj docelowo wstawisz ID zalogowanego usera z Firebase Auth
+        userId: auth.currentUser?.uid || null,
       };
 
-      // Wywołujemy naszą zmodyfikowaną funkcję.
-      // JavaScript w React Native potrafi przepchnąć obiekt z uri, name i type do fetch/axios w Supabase.
       await addPet(petData, selectedPhoto);
-
-      // Po sukcesie wracamy do listy zwierzaków
       router.replace('/pets');
     } catch (err) {
       console.error(err);
@@ -98,17 +93,31 @@ const AddPetScreen = () => {
   };
 
   return (
-    <ThemedView style={styles.container}>
-      <View style={[styles.header, { paddingTop: insets.top + 15 }]}>
-        <TouchableOpacity onPress={() => router.push('/pets')} style={styles.headerSideLeft}>
-          <Ionicons name="arrow-back" size={28} color="#000" />
+    <ThemedView style={[styles.container, { backgroundColor: currentColors.background }]}>
+
+      {/* HEADER Z DYNAMICZNYMI KOLORAMI I CIENIEM */}
+      <View style={[
+        styles.header,
+        {
+          paddingTop: insets.top + 15,
+          backgroundColor: currentTheme === 'dark' ? '#1E2123' : '#FFFFFF',
+          shadowColor: currentTheme === 'dark' ? '#FFFFFF' : '#000000',
+          shadowOpacity: currentTheme === 'dark' ? 0.35 : 0.12,
+          shadowOffset: { width: 0, height: 3 },
+          shadowRadius: currentTheme === 'dark' ? 5 : 4,
+          elevation: currentTheme === 'dark' ? 10 : 4,
+        }
+      ]}>
+        <TouchableOpacity onPress={() => router.replace('/pets')} style={styles.headerSide}>
+          <Ionicons name="arrow-back" size={28} color={currentColors.text} />
         </TouchableOpacity>
-        <ThemedText style={styles.logo}>iFeeder</ThemedText>
+
+        <ThemedText style={[styles.logo, { color: currentColors.text }]}>iFeeder</ThemedText>
         <View style={styles.headerSide} />
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        <ThemedText style={styles.title}>Add pet</ThemedText>
+        <Text style={[styles.title, { color: currentColors.text }]}>Add pet</Text>
 
         <View style={styles.form}>
           <View style={styles.inputGroup}>
@@ -117,8 +126,8 @@ const AddPetScreen = () => {
               value={name}
               onChangeText={setName}
               placeholder="Enter your pet's name"
-              placeholderTextColor="#999"
-              style={styles.input}
+              placeholderTextColor={currentTheme === 'dark' ? '#7A7A7A' : '#999'}
+              style={[styles.input, { backgroundColor: currentTheme === 'dark' ? '#26292B' : '#F8F8F8', color: currentColors.text }]}
               editable={!isLoading}
             />
           </View>
@@ -126,17 +135,19 @@ const AddPetScreen = () => {
           <View style={styles.section}>
             <ThemedText style={styles.sectionTitle}>Choose photo</ThemedText>
 
-            {/* Podgląd wybranego zdjęcia */}
             {selectedPhoto && (
               <View style={styles.imagePreviewContainer}>
-                <Image source={{ uri: selectedPhoto.uri }} style={styles.imagePreview} />
+                <Image
+                  source={{ uri: selectedPhoto.uri }}
+                  style={[styles.imagePreview, { borderColor: currentColors.border, backgroundColor: currentColors.border }]}
+                />
               </View>
             )}
 
             <TouchableOpacity
               style={styles.galleryButton}
               activeOpacity={0.8}
-              onPress={pickImage} // Podpinamy funkcję wyboru zdjęcia
+              onPress={pickImage}
               disabled={isLoading}
             >
               <Ionicons name="images" size={18} color="#FFFFFF" />
@@ -153,15 +164,19 @@ const AddPetScreen = () => {
               return (
                 <TouchableOpacity
                   key={collar.id}
-                  style={[styles.radioRow, active && styles.radioRowActive]}
+                  style={[
+                    styles.radioRow,
+                    { borderColor: currentTheme === 'dark' ? '#444' : '#DDD' },
+                    active && (currentTheme === 'dark' ? { borderColor: '#E99664', backgroundColor: '#2D231E' } : styles.radioRowActive)
+                  ]}
                   onPress={() => setSelectedCollar(collar.id)}
                   activeOpacity={0.8}
                   disabled={isLoading}
                 >
-                  <View style={[styles.radioCircle, { borderColor: active ? collar.color : '#CCC' }]}>
+                  <View style={[styles.radioCircle, { borderColor: active ? collar.color : (currentTheme === 'dark' ? '#666' : '#CCC') }]}>
                     {active && <View style={[styles.radioDot, { backgroundColor: collar.color }]} />}
                   </View>
-                  <Text style={[styles.radioLabel, active && { color: collar.color }]}>{collar.label}</Text>
+                  <Text style={[styles.radioLabel, { color: currentColors.text }, active && { color: collar.color }]}>{collar.label}</Text>
                 </TouchableOpacity>
               );
             })}
@@ -190,7 +205,7 @@ const AddPetScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    overflow: 'visible',
   },
   header: {
     flexDirection: 'row',
@@ -198,26 +213,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingBottom: 15,
     paddingHorizontal: 20,
-    backgroundColor: 'white',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 4,
+    zIndex: 999,
   },
   headerSide: {
-    width: 32,
-    alignItems: 'flex-end',
-  },
-  headerSideLeft: {
-    width: 32,
+    width: 40,
+    height: 40,
     justifyContent: 'center',
-    alignItems: 'flex-start',
   },
   logo: {
     fontSize: 32,
     fontWeight: 'bold',
     fontStyle: 'italic',
+    flex: 1,
+    textAlign: 'center',
   },
   scrollContent: {
     alignItems: 'center',
@@ -229,7 +237,7 @@ const styles = StyleSheet.create({
     fontWeight: '400',
     marginTop: 30,
     marginBottom: 25,
-    color: '#000',
+    textAlign: 'center',
   },
   form: {
     width: '100%',
@@ -241,17 +249,14 @@ const styles = StyleSheet.create({
   inputLabel: {
     fontSize: 16,
     marginBottom: 10,
-    color: '#333',
     fontWeight: '500',
   },
   input: {
     width: '100%',
-    backgroundColor: '#F8F8F8',
     borderRadius: 18,
     paddingHorizontal: 16,
     paddingVertical: 14,
     fontSize: 16,
-    color: '#111',
   },
   section: {
     marginBottom: 25,
@@ -260,7 +265,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     marginBottom: 14,
     fontWeight: '600',
-    color: '#000',
   },
   imagePreviewContainer: {
     alignItems: 'center',
@@ -269,8 +273,8 @@ const styles = StyleSheet.create({
   imagePreview: {
     width: 150,
     height: 150,
-    borderRadius: 75, // Tworzy okrągły podgląd zdjęcia zwierzaka
-    backgroundColor: '#F0F0F0',
+    borderRadius: 75,
+    borderWidth: 1,
   },
   galleryButton: {
     flexDirection: 'row',
@@ -293,7 +297,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: '#DDD',
     marginBottom: 12,
   },
   radioRowActive: {
@@ -305,7 +308,6 @@ const styles = StyleSheet.create({
     height: 24,
     borderRadius: 12,
     borderWidth: 2,
-    borderColor: '#CCC',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 14,
@@ -317,7 +319,6 @@ const styles = StyleSheet.create({
   },
   radioLabel: {
     fontSize: 16,
-    color: '#000',
   },
   errorText: {
     color: '#D94747',
