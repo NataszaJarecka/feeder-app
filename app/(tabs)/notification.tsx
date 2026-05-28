@@ -9,6 +9,12 @@ import { Colors } from '../../constants/Colors';
 import { useAppTheme } from '../../context/ThemeContext';
 import { clearAllUserNotifications, DisplayNotification, fetchUserNotifications } from '../../services/notificationService';
 
+// Zakładam, że DisplayNotification w twoim serwisie może mieć opcjonalne pole na zdjęcie:
+// Jeśli pole w Twojej bazie nazywa się inaczej (np. petImage), zmień 'avatarUrl' poniżej na właściwą nazwę.
+interface ExtendedDisplayNotification extends DisplayNotification {
+  avatarUrl?: string;
+}
+
 const { width } = Dimensions.get('window');
 
 const NotificationsScreen = () => {
@@ -19,9 +25,9 @@ const NotificationsScreen = () => {
   const currentColors = Colors[currentTheme];
   const theme = currentTheme;
 
-  const [notifications, setNotifications] = useState<DisplayNotification[]>([]);
+  const [notifications, setNotifications] = useState<ExtendedDisplayNotification[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
-  const [clearing, setClearing] = useState<boolean>(false); // Stan blokujący przycisk podczas wysyłania do bazy
+  const [clearing, setClearing] = useState<boolean>(false);
 
   const loadNotifications = async () => {
     try {
@@ -39,20 +45,13 @@ const NotificationsScreen = () => {
     loadNotifications();
   }, []);
 
-  // ZMIANA: Obsługa czyszczenia powiadomień w bazie i lokalnie
   const handleClearAll = async () => {
     if (notifications.length === 0 || clearing) return;
 
     try {
       setClearing(true);
-
-      // Wyciągamy tablicę samych ID z aktualnie wyświetlanych powiadomień
       const idsToClear = notifications.map(n => n.id);
-
-      // Aktualizacja w Firebase Firestore
       await clearAllUserNotifications(idsToClear);
-
-      // Czyszczenie stanu w aplikacji
       setNotifications([]);
     } catch (error) {
       console.error("Błąd podczas czyszczenia powiadomień na ekranie:", error);
@@ -124,14 +123,20 @@ const NotificationsScreen = () => {
               <View key={item.id} style={styles.notificationWrapper}>
                 <Text style={[styles.timeLabel, { color: theme === 'dark' ? '#A0A0A0' : '#333' }]}>{item.time}</Text>
 
-                <View style={[
-                  styles.card,
-                  { backgroundColor: theme === 'dark' ? '#26292B' : '#EEA179' }
-                ]}>
+                {/* ZMIANA: Tło kafetki jest zawsze pomarańczowe (#EEA179) */}
+                <View style={[styles.card, { backgroundColor: '#EEA179' }]}>
                   {item.type === 'pet' ? (
                     <>
                       <View style={styles.avatarPlaceholder}>
-                        <Ionicons name="paw" size={32} color={theme === 'dark' ? '#26292B' : '#EEA179'} />
+                        {/* ZMIANA: Wyświetlanie zdjęcia zwierzaka jeśli istnieje URL, w przeciwnym wypadku ikonka łapki */}
+                        {item.avatarUrl ? (
+                          <Image
+                            source={{ uri: item.avatarUrl }}
+                            style={styles.petAvatar}
+                          />
+                        ) : (
+                          <Ionicons name="paw" size={32} color="#EEA179" />
+                        )}
                       </View>
                       <Text style={styles.notificationText}>
                         <Text style={{ fontWeight: '500' }}>{item.name}</Text> {item.msg}
@@ -182,7 +187,9 @@ const styles = StyleSheet.create({
   notificationWrapper: { marginBottom: 20 },
   timeLabel: { fontSize: 18, marginLeft: 30, marginBottom: 5 },
   card: { borderRadius: 30, flexDirection: 'row', alignItems: 'center', padding: 12, paddingHorizontal: 15, minHeight: 90 },
-  avatarPlaceholder: { width: 65, height: 65, borderRadius: 32.5, backgroundColor: 'white', justifyContent: 'center', alignItems: 'center' },
+  avatarPlaceholder: { width: 65, height: 65, borderRadius: 32.5, backgroundColor: 'white', justifyContent: 'center', alignItems: 'center', overflow: 'hidden' },
+  // DODANE: Styl dla zdjęcia zwierzaka wewnątrz okręgu
+  petAvatar: { width: '100%', height: '100%', resizeMode: 'cover' },
   notificationText: { flex: 1, color: 'white', fontSize: 22, marginLeft: 15, fontWeight: '300', textAlign: 'center' },
   alertContent: { flexDirection: 'row', alignItems: 'center', flex: 1 },
   alertIconContainer: { width: 60, alignItems: 'center' },

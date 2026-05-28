@@ -7,9 +7,9 @@ import { ThemedText } from './themed-text';
 // IMPORT SERWISÓW I TYPÓW
 import { Timestamp } from 'firebase/firestore';
 import { Colors } from '../constants/Colors';
-import { useAppTheme } from '../context/ThemeContext'; // <-- IMPORT KONTEKSTU MOTYWÓW
+import { useAppTheme } from '../context/ThemeContext';
 import { auth } from '../firebaseConfig';
-import { addMeal, NewMeal } from '../services/feedingService';
+import { addMeal, NewMeal, RecurrenceType } from '../services/feedingService';
 import { getPetsByUser, Pet } from '../services/petService';
 
 interface AddMealModalProps {
@@ -18,7 +18,6 @@ interface AddMealModalProps {
 }
 
 export function AddMealModal({ isVisible, onClose }: AddMealModalProps) {
-  // Pobieramy motyw aplikacji z Twojego kontekstu
   const { currentTheme } = useAppTheme();
   const currentColors = Colors[currentTheme];
   const theme = currentTheme;
@@ -29,8 +28,12 @@ export function AddMealModal({ isVisible, onClose }: AddMealModalProps) {
   const [isSaving, setIsSaving] = useState(false);
 
   const [date, setDate] = useState(new Date());
-  const [showPicker, setShowPicker] = useState<'date' | 'time' | null>(null);
+  const [showPicker, setShowPicker] = useState<'date' | 'time' | 'endDate' | null>(null);
   const [portion, setPortion] = useState('50');
+
+  // Stany powtarzalności harmonogramu i deadline'u
+  const [recurrence, setRecurrence] = useState<RecurrenceType>('ONCE');
+  const [endDate, setEndDate] = useState(new Date());
 
   const currentUserId = auth.currentUser?.uid || null;
 
@@ -51,6 +54,12 @@ export function AddMealModal({ isVisible, onClose }: AddMealModalProps) {
         }
       };
       fetchPets();
+
+      // Resetowanie stanów powtarzalności przy otwarciu modala
+      setRecurrence('ONCE');
+      const defaultEndDate = new Date();
+      defaultEndDate.setDate(defaultEndDate.getDate() + 7); // Domyślny deadline: +7 dni
+      setEndDate(defaultEndDate);
     }
   }, [isVisible]);
 
@@ -59,7 +68,11 @@ export function AddMealModal({ isVisible, onClose }: AddMealModalProps) {
       setShowPicker(null);
     }
     if (selectedDate) {
-      setDate(selectedDate);
+      if (showPicker === 'endDate') {
+        setEndDate(selectedDate);
+      } else {
+        setDate(selectedDate);
+      }
     }
   };
 
@@ -71,15 +84,21 @@ export function AddMealModal({ isVisible, onClose }: AddMealModalProps) {
 
     setIsSaving(true);
     try {
+      // Ustawiamy koniec wybranego dnia (godzina 23:59:59), aby pętla objęła go w całości
+      const finalizedEndDate = new Date(endDate);
+      finalizedEndDate.setHours(23, 59, 59, 999);
+
       const newMealData: NewMeal = {
         petId: selectedPet,
         timestamp: Timestamp.fromDate(date),
         portionGrams: parseFloat(portion) || 0,
-        status: 'scheduled'
+        status: 'scheduled',
+        recurrence: recurrence,
+        endDate: recurrence !== 'ONCE' ? Math.floor(finalizedEndDate.getTime() / 1000) : undefined
       };
 
       await addMeal(newMealData);
-      console.log("Pomyślnie zapisano posiłek w bazie!");
+      console.log("Pomyślnie zapisano posiłek/serię posiłków w bazie!");
       onClose();
     } catch (error) {
       console.error("Błąd zapisu posiłku do bazy:", error);
@@ -102,7 +121,13 @@ export function AddMealModal({ isVisible, onClose }: AddMealModalProps) {
     setDate(newDate);
   };
 
-  // Dynamiczne style dla wersji WEB inputów oparte na motywie
+  const handleWebEndDateChange = (e: any) => {
+    const [year, month, day] = e.target.value.split('-').map(Number);
+    const newDate = new Date(endDate);
+    newDate.setFullYear(year, month - 1, day);
+    setEndDate(newDate);
+  };
+
   const webInputStyle: any = {
     backgroundColor: '#F4A261',
     border: 'none',
@@ -121,12 +146,16 @@ export function AddMealModal({ isVisible, onClose }: AddMealModalProps) {
   return (
     <Modal animationType="fade" transparent={true} visible={isVisible} onRequestClose={onClose}>
       <View style={styles.modalOverlay}>
-        {/* Dynamiczne tło kontentu modala zależne od motywu */}
         <View style={[styles.modalContent, { backgroundColor: theme === 'dark' ? '#1E2123' : 'white' }]}>
+
+          <TouchableOpacity style={styles.closeButton} onPress={onClose} disabled={isSaving}>
+            <Ionicons name="close" size={28} color={theme === 'dark' ? '#A0A0A0' : '#666'} />
+          </TouchableOpacity>
+
           <ThemedText style={[styles.modalTitle, { color: currentColors.text }]} type="title">Add Meal</ThemedText>
 
           <ScrollView showsVerticalScrollIndicator={false}>
-            {/* PETS - DYNAMICZNA LISTA Z BAZY */}
+            {/* PETS */}
             <ThemedText style={[styles.label, { color: currentColors.text }]}>Pet</ThemedText>
 
             {loadingPets ? (
@@ -146,7 +175,7 @@ export function AddMealModal({ isVisible, onClose }: AddMealModalProps) {
               ))
             )}
 
-            {/* TIME (Wersja WEB vs MOBILE) */}
+            {/* TIME */}
             <ThemedText style={[styles.label, { color: currentColors.text }]}>Time</ThemedText>
             <View style={styles.dateTimeContainer}>
               {Platform.OS === 'web' ? (
@@ -182,7 +211,7 @@ export function AddMealModal({ isVisible, onClose }: AddMealModalProps) {
 
             {/* PORTION */}
             <ThemedText style={[styles.label, { color: currentColors.text }]}>Portion</ThemedText>
-            <View style={styles.orangeInput}>
+            <View style={styles.orangeInputFull}>
               <View style={styles.row}>
                 <TextInput
                   style={styles.textInput}
@@ -195,6 +224,60 @@ export function AddMealModal({ isVisible, onClose }: AddMealModalProps) {
                 <ThemedText style={styles.whiteText}>g</ThemedText>
               </View>
             </View>
+
+            {/* RECURRENCE */}
+            <ThemedText style={[styles.label, { color: currentColors.text }]}>Repeat</ThemedText>
+
+            <TouchableOpacity style={styles.radioRow} onPress={() => setRecurrence('ONCE')}>
+              <Ionicons
+                name={recurrence === 'ONCE' ? "radio-button-on" : "radio-button-off"}
+                size={24}
+                color={recurrence === 'ONCE' ? "#F4A261" : (theme === 'dark' ? '#A0A0A0' : 'black')}
+              />
+              <ThemedText style={[styles.radioLabel, { color: currentColors.text }]}>Once (No repeat)</ThemedText>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.radioRow} onPress={() => setRecurrence('DAILY')}>
+              <Ionicons
+                name={recurrence === 'DAILY' ? "radio-button-on" : "radio-button-off"}
+                size={24}
+                color={recurrence === 'DAILY' ? "#F4A261" : (theme === 'dark' ? '#A0A0A0' : 'black')}
+              />
+              <ThemedText style={[styles.radioLabel, { color: currentColors.text }]}>Daily</ThemedText>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.radioRow} onPress={() => setRecurrence('WEEKLY')}>
+              <Ionicons
+                name={recurrence === 'WEEKLY' ? "radio-button-on" : "radio-button-off"}
+                size={24}
+                color={recurrence === 'WEEKLY' ? "#F4A261" : (theme === 'dark' ? '#A0A0A0' : 'black')}
+              />
+              <ThemedText style={[styles.radioLabel, { color: currentColors.text }]}>Weekly</ThemedText>
+            </TouchableOpacity>
+
+            {/* DEADLINE (Pokazuje się tylko, jeśli wybrano DAILY lub WEEKLY) */}
+            {recurrence !== 'ONCE' && (
+              <>
+                <ThemedText style={[styles.label, { color: currentColors.text }]}>Repeat until (Deadline)</ThemedText>
+                <View style={styles.dateTimeContainer}>
+                  {Platform.OS === 'web' ? (
+                    <input
+                      type="date"
+                      onChange={handleWebEndDateChange}
+                      style={webInputStyle}
+                      value={endDate.toISOString().split('T')[0]}
+                    />
+                  ) : (
+                    /* ZMIANA: Zastosowanie poprawnego stylu orangeInputFull zamiast orangeInput, aby deadline idealnie się rozciągał i nie ucinał tekstu */
+                    <TouchableOpacity style={styles.orangeInputFull} onPress={() => setShowPicker('endDate')}>
+                      <ThemedText style={styles.whiteText}>
+                        {endDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+                      </ThemedText>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </>
+            )}
           </ScrollView>
 
           <TouchableOpacity
@@ -214,14 +297,15 @@ export function AddMealModal({ isVisible, onClose }: AddMealModalProps) {
         </View>
       </View>
 
-      {/* MOBILE PICKER ONLY */}
+      {/* MOBILE PICKER */}
       {showPicker && Platform.OS !== 'web' && (
         <DateTimePicker
-          value={date}
-          mode={showPicker}
+          value={showPicker === 'endDate' ? endDate : date}
+          mode={showPicker === 'endDate' ? 'date' : showPicker}
           is24Hour={true}
           display={Platform.OS === 'ios' ? 'spinner' : 'default'}
           onChange={onDateChange}
+          minimumDate={date} // Blokada ustawienia deadline'u przed czasem rozpoczęcia
         />
       )}
     </Modal>
@@ -231,11 +315,12 @@ export function AddMealModal({ isVisible, onClose }: AddMealModalProps) {
 const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)', // Delikatnie zwiększony mrok w tle modala dla lepszego efektu odcięcia
+    backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   modalContent: {
+    position: 'relative',
     width: '88%',
     borderRadius: 35,
     padding: 25,
@@ -246,15 +331,24 @@ const styles = StyleSheet.create({
     shadowRadius: 15,
     elevation: 10,
   },
+  closeButton: {
+    position: 'absolute',
+    top: 20,
+    right: 20,
+    zIndex: 10,
+    padding: 4,
+  },
   modalTitle: { fontSize: 32, textAlign: 'center', marginBottom: 20 },
   label: { fontSize: 22, marginTop: 15, marginBottom: 8, fontWeight: '500' },
-  radioRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
+  radioRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8, paddingVertical: 2 },
   radioLabel: { fontSize: 18, marginLeft: 10 },
   dateTimeContainer: { flexDirection: 'row', gap: 10, width: '100%' },
-  orangeInput: {
+  // Poprawiony, dedykowany styl dla pełnowymiarowych klocków (Portion i Deadline)
+  orangeInputFull: {
     backgroundColor: '#F4A261',
     borderRadius: 20,
     padding: 14,
+    width: '100%',
     alignItems: 'center',
     justifyContent: 'center',
   },

@@ -186,7 +186,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     width: 200,
     height: 200,
-    opacity: 0.5,
+    opacity: 0.6,
     zIndex: -1,
   },
   pawTopRight: { top: 10, right: 20, transform: [{ rotate: '15deg' }] },
@@ -201,7 +201,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   sectionTitle: {
-    fontSize: 32,
+    fontSize: 42,
     marginRight: 10,
   },
   photoContainer: {

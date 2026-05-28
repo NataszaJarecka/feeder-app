@@ -26,6 +26,7 @@ const EditPetScreen = () => {
   // Pobieramy motyw aplikacji z Twojego kontekstu
   const { currentTheme } = useAppTheme();
   const currentColors = Colors[currentTheme];
+  const theme = currentTheme;
 
   const localParams = useLocalSearchParams<{ petId: string }>();
   const globalParams = useGlobalSearchParams<{ petId: string }>();
@@ -180,12 +181,12 @@ const EditPetScreen = () => {
         styles.header,
         {
           paddingTop: insets.top + 15,
-          backgroundColor: currentTheme === 'dark' ? '#1E2123' : '#FFFFFF',
-          shadowColor: currentTheme === 'dark' ? '#FFFFFF' : '#000000',
-          shadowOpacity: currentTheme === 'dark' ? 0.35 : 0.12,
+          backgroundColor: theme === 'dark' ? '#1E2123' : '#FFFFFF',
+          shadowColor: theme === 'dark' ? '#FFFFFF' : '#000000',
+          shadowOpacity: theme === 'dark' ? 0.35 : 0.12,
           shadowOffset: { width: 0, height: 3 },
-          shadowRadius: currentTheme === 'dark' ? 5 : 4,
-          elevation: currentTheme === 'dark' ? 10 : 4,
+          shadowRadius: theme === 'dark' ? 5 : 4,
+          elevation: theme === 'dark' ? 10 : 4,
         }
       ]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.headerSide}>
@@ -200,6 +201,12 @@ const EditPetScreen = () => {
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        {/* ZMIANA: Dodano pełny, 4-elementowy wzór dekoracyjny łapek w tle */}
+        <Image source={require('@/assets/images/paw-pattern.png')} style={[styles.bgPaw, styles.pawTopRight]} resizeMode="contain" tintColor={theme === 'dark' ? '#FFF' : undefined} />
+        <Image source={require('@/assets/images/paw-pattern.png')} style={[styles.bgPaw, styles.pawMidLeft]} resizeMode="contain" tintColor={theme === 'dark' ? '#FFF' : undefined} />
+        <Image source={require('@/assets/images/paw-pattern.png')} style={[styles.bgPaw, styles.pawMidRight]} resizeMode="contain" tintColor={theme === 'dark' ? '#FFF' : undefined} />
+        <Image source={require('@/assets/images/paw-pattern.png')} style={[styles.bgPaw, styles.pawBottomLeft]} resizeMode="contain" tintColor={theme === 'dark' ? '#FFF' : undefined} />
+
         {/* DYNAMICZNY TYTUŁ STRONY */}
         <Text style={[styles.pageTitle, { color: currentColors.text }]}>Edit Pet</Text>
 
@@ -232,8 +239,8 @@ const EditPetScreen = () => {
               value={name}
               onChangeText={setName}
               placeholder="Enter pet's name"
-              placeholderTextColor={currentTheme === 'dark' ? '#7A7A7A' : '#999'}
-              style={[styles.input, { backgroundColor: currentTheme === 'dark' ? '#26292B' : '#F8F8F8', color: currentColors.text }]}
+              placeholderTextColor={theme === 'dark' ? '#7A7A7A' : '#999'}
+              style={[styles.input, { backgroundColor: theme === 'dark' ? '#26292B' : '#F8F8F8', color: currentColors.text }]}
               editable={!isSaving}
             />
           </View>
@@ -247,14 +254,14 @@ const EditPetScreen = () => {
                   key={collar.id}
                   style={[
                     styles.radioRow,
-                    { borderColor: currentTheme === 'dark' ? '#444' : '#DDD' },
-                    active && (currentTheme === 'dark' ? { borderColor: '#E99664', backgroundColor: '#2D231E' } : styles.radioRowActive)
+                    { borderColor: theme === 'dark' ? '#444' : '#DDD' },
+                    active && (theme === 'dark' ? { borderColor: '#E99664', backgroundColor: '#2D231E' } : styles.radioRowActive)
                   ]}
                   onPress={() => setSelectedCollar(collar.id)}
                   activeOpacity={0.8}
                   disabled={isSaving}
                 >
-                  <View style={[styles.radioCircle, { borderColor: active ? collar.color : (currentTheme === 'dark' ? '#666' : '#CCC') }]}>
+                  <View style={[styles.radioCircle, { borderColor: active ? collar.color : (theme === 'dark' ? '#666' : '#CCC') }]}>
                     {active && <View style={[styles.radioDot, { backgroundColor: collar.color }]} />}
                   </View>
                   <Text style={[styles.radioLabel, { color: currentColors.text }, active && { color: collar.color }]}>{collar.label}</Text>
@@ -465,7 +472,35 @@ const styles = StyleSheet.create({
   backButtonText: {
     color: 'white',
     fontWeight: '600',
-  }
+  },
+  // ZMIANA: Dodano komplet uniwersalnych klas pozycjonujących łapki w tle
+  bgPaw: {
+    position: 'absolute',
+    width: 200,
+    height: 200,
+    opacity: 0.6,
+    zIndex: -1,
+  },
+  pawTopRight: {
+    top: 10,
+    right: 20,
+    transform: [{ rotate: '15deg' }],
+  },
+  pawMidLeft: {
+    top: 250,
+    left: 20,
+    transform: [{ rotate: '-10deg' }],
+  },
+  pawMidRight: {
+    top: 500,
+    right: 30,
+    transform: [{ rotate: '5deg' }],
+  },
+  pawBottomLeft: {
+    top: 750,
+    left: 20,
+    transform: [{ rotate: '-20deg' }],
+  },
 });
 
 export default EditPetScreen;

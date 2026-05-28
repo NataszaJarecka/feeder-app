@@ -17,7 +17,6 @@ export default function MyPetsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
-  // ZMIANA: Pobieramy motyw aplikacji z Twojego kontekstu zamiast z systemu
   const { currentTheme } = useAppTheme();
   const currentColors = Colors[currentTheme];
   const theme = currentTheme;
@@ -87,13 +86,11 @@ export default function MyPetsScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* TŁO - ŁAPA (Zmienia kolor na biały w trybie ciemnym) */}
-        <Image
-          source={require('@/assets/images/paw-pattern.png')}
-          style={[styles.bgPaw, styles.pawTopRight]}
-          resizeMode="contain"
-          tintColor={theme === 'dark' ? '#FFF' : undefined}
-        />
+        {/* ZMIANA: Dodano kompletny zestaw łapek w tle, skopiowany 1:1 ze StatisticsScreen */}
+        <Image source={require('@/assets/images/paw-pattern.png')} style={[styles.bgPaw, styles.pawTopRight]} resizeMode="contain" tintColor={theme === 'dark' ? '#FFF' : undefined} />
+        <Image source={require('@/assets/images/paw-pattern.png')} style={[styles.bgPaw, styles.pawMidLeft]} resizeMode="contain" tintColor={theme === 'dark' ? '#FFF' : undefined} />
+        <Image source={require('@/assets/images/paw-pattern.png')} style={[styles.bgPaw, styles.pawMidRight]} resizeMode="contain" tintColor={theme === 'dark' ? '#FFF' : undefined} />
+        <Image source={require('@/assets/images/paw-pattern.png')} style={[styles.bgPaw, styles.pawBottomLeft]} resizeMode="contain" tintColor={theme === 'dark' ? '#FFF' : undefined} />
 
         <Text style={[styles.pageTitle, { color: currentColors.text }]}>My Pets</Text>
 
@@ -134,7 +131,6 @@ export default function MyPetsScreen() {
                       }}
                     />
                   </TouchableOpacity>
-                  {/* ZMIANA: Dodano dynamiczny kolor dla podpisu zwierzaka */}
                   <ThemedText style={[styles.petName, { color: currentColors.text }]}>{pet.name}</ThemedText>
                 </View>
               );
@@ -147,7 +143,6 @@ export default function MyPetsScreen() {
               >
                 <Ionicons name="add" size={50} color={currentColors.icon} />
               </TouchableOpacity>
-              {/* ZMIANA: Dodano dynamiczny kolor dla podpisu "Add" */}
               <ThemedText style={[styles.petName, { color: currentColors.text }]}>Add</ThemedText>
             </View>
 
@@ -225,10 +220,26 @@ const styles = StyleSheet.create({
     opacity: 0.6,
     zIndex: -1,
   },
+  // ZMIANA: Komplet stylowania dla pozycjonowania łapek z ekranu statystyk
   pawTopRight: {
     top: 10,
     right: 20,
     transform: [{ rotate: '15deg' }],
+  },
+  pawMidLeft: {
+    top: 250,
+    left: 20,
+    transform: [{ rotate: '-10deg' }],
+  },
+  pawMidRight: {
+    top: 500,
+    right: 30,
+    transform: [{ rotate: '5deg' }],
+  },
+  pawBottomLeft: {
+    top: 750,
+    left: 20,
+    transform: [{ rotate: '-20deg' }],
   },
   centerContainer: {
     marginVertical: 60,

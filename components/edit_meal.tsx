@@ -113,7 +113,7 @@ export function EditMealModal({ isVisible, onClose, meal }: EditMealModalProps) 
         console.log("Pomyślnie usunięto posiłek!");
         onClose();
       } catch (error) {
-        console.error("Błąd usuwania posiłku:", error);
+        console.error("Błąd trauma usuwania posiłku:", error);
       } finally {
         setIsDeleting(false);
       }
@@ -169,6 +169,12 @@ export function EditMealModal({ isVisible, onClose, meal }: EditMealModalProps) 
       <View style={styles.modalOverlay}>
         {/* Dynamiczne tło kontentu modala zależne od motywu */}
         <View style={[styles.modalContent, { backgroundColor: theme === 'dark' ? '#1E2123' : 'white' }]}>
+
+          {/* ZMIANA: Dodany przycisk zamknij (Cancel) w prawym górnym rogu */}
+          <TouchableOpacity style={styles.closeButton} onPress={onClose} disabled={isSaving || isDeleting}>
+            <Ionicons name="close" size={28} color={theme === 'dark' ? '#A0A0A0' : '#666'} />
+          </TouchableOpacity>
+
           <ThemedText style={[styles.modalTitle, { color: currentColors.text }]} type="title">Edit Meal</ThemedText>
 
           <ScrollView showsVerticalScrollIndicator={false}>
@@ -302,6 +308,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalContent: {
+    position: 'relative', // ZMIANA: Konieczne do poprawnego pozycjonowania przycisku absolutnego
     width: '88%',
     borderRadius: 35,
     padding: 25,
@@ -311,6 +318,14 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 15,
     elevation: 10,
+  },
+  // ZMIANA: Styl pozycjonujący przycisk krzyżyka w prawym górnym rogu
+  closeButton: {
+    position: 'absolute',
+    top: 20,
+    right: 20,
+    zIndex: 10,
+    padding: 4,
   },
   modalTitle: { fontSize: 32, textAlign: 'center', marginBottom: 20 },
   label: { fontSize: 22, marginTop: 15, marginBottom: 8, fontWeight: '500' },

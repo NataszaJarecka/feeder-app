@@ -26,6 +26,7 @@ const AddPetScreen = () => {
   // ZMIANA: Pobieramy zapisany w aplikacji motyw (light/dark) z Twojego kontekstu
   const { currentTheme } = useAppTheme();
   const currentColors = Colors[currentTheme];
+  const theme = currentTheme;
 
   const [name, setName] = React.useState('');
   const [selectedPhoto, setSelectedPhoto] = React.useState<any>(null);
@@ -117,6 +118,12 @@ const AddPetScreen = () => {
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        {/* ZMIANA: Dodano kompletny wzór łapek w tle ze spójnymi pozycjami i rotacjami */}
+        <Image source={require('@/assets/images/paw-pattern.png')} style={[styles.bgPaw, styles.pawTopRight]} resizeMode="contain" tintColor={theme === 'dark' ? '#FFF' : undefined} />
+        <Image source={require('@/assets/images/paw-pattern.png')} style={[styles.bgPaw, styles.pawMidLeft]} resizeMode="contain" tintColor={theme === 'dark' ? '#FFF' : undefined} />
+        <Image source={require('@/assets/images/paw-pattern.png')} style={[styles.bgPaw, styles.pawMidRight]} resizeMode="contain" tintColor={theme === 'dark' ? '#FFF' : undefined} />
+        <Image source={require('@/assets/images/paw-pattern.png')} style={[styles.bgPaw, styles.pawBottomLeft]} resizeMode="contain" tintColor={theme === 'dark' ? '#FFF' : undefined} />
+
         <Text style={[styles.title, { color: currentColors.text }]}>Add pet</Text>
 
         <View style={styles.form}>
@@ -338,6 +345,34 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 18,
     fontWeight: '600',
+  },
+  // ZMIANA: Klasy stylizujące dekoracyjne łapki w tle siatki
+  bgPaw: {
+    position: 'absolute',
+    width: 200,
+    height: 200,
+    opacity: 0.6,
+    zIndex: -1,
+  },
+  pawTopRight: {
+    top: 10,
+    right: 20,
+    transform: [{ rotate: '15deg' }],
+  },
+  pawMidLeft: {
+    top: 250,
+    left: 20,
+    transform: [{ rotate: '-10deg' }],
+  },
+  pawMidRight: {
+    top: 500,
+    right: 30,
+    transform: [{ rotate: '5deg' }],
+  },
+  pawBottomLeft: {
+    top: 750,
+    left: 20,
+    transform: [{ rotate: '-20deg' }],
   },
 });
 

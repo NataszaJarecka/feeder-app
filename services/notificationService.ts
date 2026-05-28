@@ -12,7 +12,7 @@ export interface DBNotification {
   deviceId: string;
   cleared: boolean;
   petId: string;
-  type: 'FEEDING_SUCCESS' | 'FEEDING_FAIL' | 'DEVICE_ERROR';
+  type: 'FEEDING_SUCCESS' | 'FEEDING_FAIL' | 'FEEDING_ERROR';
 }
 
 export interface DisplayNotification {
@@ -23,6 +23,7 @@ export interface DisplayNotification {
   msg: string;
   subMsg?: string;
   petId?: string;
+  avatarUrl?: string; // ZMIANA: Dodany opcjonalny adres URL zdjęcia zwierzaka
 }
 
 /**
@@ -63,21 +64,37 @@ export const fetchUserNotifications = async (): Promise<DisplayNotification[]> =
       rawNotifications.push({ id: docSnap.id, ...docSnap.data() } as DBNotification);
     });
 
-    // 3. Przetwórz powiadomienia i pobierz imiona zwierząt
+    // 3. Przetwórz powiadomienia i pobierz imiona oraz ZDJĘCIA zwierząt
     const displayNotifications: DisplayNotification[] = [];
+
+    // Pamięć podręczna (cache), aby nie pobierać wielokrotnie z Firestore tego samego zwierzaka
+    const petCache: Record<string, { name: string; image: string }> = {};
 
     for (const notif of rawNotifications) {
       let petName = 'Pet';
+      let petImage = '';
 
       if (notif.petId) {
-        try {
-          const petDocRef = doc(db, 'pets', notif.petId);
-          const petSnap = await getDoc(petDocRef);
-          if (petSnap.exists()) {
-            petName = petSnap.data().name || 'Pet';
+        // Jeśli dane zwierzaka są już w pamięci podręcznej, używamy ich
+        if (petCache[notif.petId]) {
+          petName = petCache[notif.petId].name;
+          petImage = petCache[notif.petId].image;
+        } else {
+          try {
+            const petDocRef = doc(db, 'pets', notif.petId);
+            const petSnap = await getDoc(petDocRef);
+            if (petSnap.exists()) {
+              const petData = petSnap.data();
+              petName = petData.name || 'Pet';
+              // ZMIANA: Pobranie klucza 'image' bezpośrednio z dokumentu zwierzaka
+              petImage = petData.image || '';
+
+              // Zapisujemy do pamięci podręcznej na czas trwania tej pętli
+              petCache[notif.petId] = { name: petName, image: petImage };
+            }
+          } catch (e) {
+            console.warn(`Nie udało się pobrać danych zwierzaka o ID: ${notif.petId}`, e);
           }
-        } catch (e) {
-          console.warn(`Nie udało się pobrać imienia zwierzaka o ID: ${notif.petId}`, e);
         }
       }
 
@@ -96,7 +113,8 @@ export const fetchUserNotifications = async (): Promise<DisplayNotification[]> =
           type: 'pet',
           name: petName,
           msg: 'has finished a meal.',
-          petId: notif.petId
+          petId: notif.petId,
+          avatarUrl: petImage // ZMIANA: Przekazanie adresu URL do widoku
         });
       } else if (notif.type === 'FEEDING_FAIL') {
         displayNotifications.push({
@@ -105,9 +123,10 @@ export const fetchUserNotifications = async (): Promise<DisplayNotification[]> =
           type: 'pet',
           name: petName,
           msg: "hasn't finished a meal!",
-          petId: notif.petId
+          petId: notif.petId,
+          avatarUrl: petImage // ZMIANA: Przekazanie adresu URL do widoku
         });
-      } else if (notif.type === 'DEVICE_ERROR') {
+      } else if (notif.type === 'FEEDING_ERROR') {
         displayNotifications.push({
           id: notif.id,
           time: fullTime,
@@ -157,20 +176,17 @@ export const registerForPushNotificationsAsync = async (): Promise<void> => {
     return;
   }
 
-  // Blokada dla przeglądarek internetowych, aby zapobiec błędowi klucza VAPID
   if (Platform.OS === 'web') {
     console.log(' 🌐 [Push] Wykryto platformę Web. Powiadomienia push wyłączone w przeglądarce.');
     return;
   }
 
-  // Zabezpieczenie dla emulatorów komputerowych (Push wymaga fizycznego telefonu)
   if (!Device.isDevice) {
     console.log(' 📱 [Push] Funkcja odpalona na emulatorze. Tokeny push zapisują się TYLKO na fizycznych urządzeniach.');
     return;
   }
 
   try {
-    // 1. Prośba o uprawnienia systemowe
     const { status: existingStatus } = await Notifications.getPermissionsAsync();
     let finalStatus = existingStatus;
 
@@ -184,13 +200,11 @@ export const registerForPushNotificationsAsync = async (): Promise<void> => {
       return;
     }
 
-    // 2. Pobranie unikalnego tokenu z serwerów Expo
     const tokenData = await Notifications.getExpoPushTokenAsync();
     const token = tokenData.data;
 
     console.log(" 🎉 [Push] Wygenerowano token urządzenia:", token);
 
-    // 3. Zapis pola pushToken bezpośrednio w dokumencie zalogowanego użytkownika
     const userRef = doc(db, 'users', user.uid);
     await updateDoc(userRef, {
       pushToken: token

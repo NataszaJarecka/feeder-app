@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Dimensions, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -10,7 +10,7 @@ import { EditMealModal } from '../../components/edit_meal';
 import { ThemedText } from '../../components/themed-text';
 import { ThemedView } from '../../components/themed-view';
 import { Colors } from '../../constants/Colors';
-import { useAppTheme } from '../../context/ThemeContext'; // <-- IMPORT KONTEKSTU MOTYWÓW
+import { useAppTheme } from '../../context/ThemeContext';
 import { auth } from '../../firebaseConfig';
 import { getAllMealsByDate, Meal } from '../../services/feedingService';
 import { getPetById, Pet } from '../../services/petService';
@@ -23,9 +23,8 @@ const isMobile = SCREEN_WIDTH < 600;
 const COLUMN_WIDTH = isMobile ? (SCREEN_WIDTH - TIME_LABEL_WIDTH - 24) / 4 : 130;
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 
-// ==========================================
-// KOMPONENT: KAFELEK POSIŁKU (DLA OBU WIDOKÓW)
-// ==========================================
+const TIMELINE_HEIGHT = 24 * HOUR_HEIGHT;
+
 interface MealTileProps {
   meal: Meal;
   onPress: (meal: Meal) => void;
@@ -125,9 +124,6 @@ const MealTile = ({ meal, onPress, isWeeklyMode }: MealTileProps) => {
   );
 };
 
-// ==========================================
-// KOMPONENT: KOLUMNA DNIA (TYLKO TYGODNIOWY)
-// ==========================================
 interface DayColumnProps {
   date: Date;
   now: Date;
@@ -214,13 +210,9 @@ const DayColumn = ({ date, now, onEditMeal, refreshTrigger }: DayColumnProps) =>
   );
 };
 
-// ==========================================
-// GŁÓWNY EKRAN: SCHEDULE SCREEN
-// ==========================================
 export default function ScheduleScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { petId } = useLocalSearchParams<{ petId: string }>();
 
   const { currentTheme } = useAppTheme();
   const currentColors = Colors[currentTheme];
@@ -353,7 +345,7 @@ export default function ScheduleScreen() {
 
   return (
     <ThemedView style={[styles.container, { backgroundColor: currentColors.background }]}>
-      {/* HEADER GŁÓWNY Z DYNAMICZNYM TŁEM I BIAŁYM CIENIEM */}
+      {/* HEADER */}
       <View style={[
         styles.header,
         {
@@ -382,7 +374,6 @@ export default function ScheduleScreen() {
         contentContainerStyle={[styles.scrollContent, viewMode === 'weekly' && styles.scrollContentWeekly]}
         style={{ backgroundColor: currentColors.background }}
       >
-        {/* Łapki dekoracyjne (zmieniają odcień na biały w trybie nocnym) */}
         <Image source={require('@/assets/images/paw-pattern.png')} style={[styles.bgPaw, styles.pawTopRight]} resizeMode="contain" tintColor={theme === 'dark' ? '#FFF' : undefined} />
         <Image source={require('@/assets/images/paw-pattern.png')} style={[styles.bgPaw, styles.pawMidLeft]} resizeMode="contain" tintColor={theme === 'dark' ? '#FFF' : undefined} />
 
@@ -421,7 +412,6 @@ export default function ScheduleScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* WARUNKOWE RENDEROWANIE SAMEJ OSI CZASU */}
         {viewMode === 'daily' ? (
           dailyLoading ? (
             <ActivityIndicator size="large" color="#FF8C42" style={{ marginTop: 50 }} />
@@ -440,11 +430,11 @@ export default function ScheduleScreen() {
                 <MealTile key={meal.id} meal={meal} onPress={handleOpenEditModal} isWeeklyMode={false} />
               ))}
 
+              {/* ZMIANA: Wskaźnik teraz ma kropkę tylko z lewej i leci do samego końca ekranu bez kropki z prawej */}
               {isTodayDaily && (
-                <View style={[styles.dailyTimeIndicator, { left: 55, right: 15 }]}>
+                <View style={[styles.dailyTimeIndicator, { top: dailyIndicatorPosition, left: 55, right: 0 }]}>
                   <View style={[styles.dailyIndicatorDot, { backgroundColor: currentColors.text }]} />
                   <View style={[styles.dailyIndicatorLine, { backgroundColor: currentColors.text }]} />
-                  <View style={[styles.dailyIndicatorDot, { backgroundColor: currentColors.text }]} />
                 </View>
               )}
             </View>
@@ -545,15 +535,18 @@ const styles = StyleSheet.create({
   pawTopRight: { top: 10, right: 20, transform: [{ rotate: '15deg' }] },
   pawMidLeft: { top: 250, left: 20, transform: [{ rotate: '-10deg' }] },
 
-  dailyTimelineContainer: { width: SCREEN_WIDTH, paddingLeft: 10, paddingRight: 15, position: 'relative' },
+  // ZMIANA: Usunięto padding z prawej i dopasowano do pełnej szerokości, żeby elementy mogły dociągać do końca ekranu
+  dailyTimelineContainer: { width: SCREEN_WIDTH, height: TIMELINE_HEIGHT, paddingLeft: 10, position: 'relative' },
   dailyHourRow: { flexDirection: 'row', height: HOUR_HEIGHT },
   dailyHourLabelContainer: { width: 60, alignItems: 'flex-end', paddingRight: 10, marginTop: -10 },
   dailyHourLabel: { fontSize: 14 },
-  dailyHourSlot: { flex: 1, borderTopWidth: 1, marginLeft: 5, borderRadius: 10, marginBottom: 5 },
+  // ZMIANA: Dodano marginRight: 15, dzięki czemu szara linia tła siatki ładnie się kończy, nie dotykając chamsko krawędzi
+  dailyHourSlot: { flex: 1, borderTopWidth: 1, marginLeft: 5, borderRadius: 10, marginBottom: 5, marginRight: 15 },
   dailyTimeIndicator: { position: 'absolute', flexDirection: 'row', alignItems: 'center', zIndex: 100 },
   dailyIndicatorLine: { flex: 1, height: 2 },
   dailyIndicatorDot: { width: 6, height: 6, borderRadius: 3 },
-  dailyMealTile: { position: 'absolute', left: 75, right: 5, height: 60, borderWidth: 1, borderRadius: 15, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, zIndex: 90, elevation: 5, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 3 },
+  // ZMIANA: Zmieniono right: 5 na right: 15, aby kafelki nie były ucinane po prawej i miały estetyczny margines od brzegu
+  dailyMealTile: { position: 'absolute', left: 75, right: 15, height: 60, borderWidth: 1, borderRadius: 15, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, zIndex: 90, elevation: 5, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 3 },
   dailyTilePetImage: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#ccc' },
   dailyTileInfo: { marginLeft: 12, justifyContent: 'center', flex: 1 },
   dailyTilePetName: { fontSize: 16, fontWeight: 'bold' },

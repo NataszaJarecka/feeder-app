@@ -50,8 +50,10 @@ const NotificationSettingsScreen = () => {
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* TŁO - ŁAPY (Zmieniają kolor na biały w trybie ciemnym) */}
+        {/* ZMIANA: Zastąpiono stare 2 łapki pełnym, 4-elementowym wzorem łapek w tle ze Statistics/MyPets */}
         <Image source={require('@/assets/images/paw-pattern.png')} style={[styles.bgPaw, styles.pawTopRight]} resizeMode="contain" tintColor={theme === 'dark' ? '#FFF' : undefined} />
+        <Image source={require('@/assets/images/paw-pattern.png')} style={[styles.bgPaw, styles.pawMidLeft]} resizeMode="contain" tintColor={theme === 'dark' ? '#FFF' : undefined} />
+        <Image source={require('@/assets/images/paw-pattern.png')} style={[styles.bgPaw, styles.pawMidRight]} resizeMode="contain" tintColor={theme === 'dark' ? '#FFF' : undefined} />
         <Image source={require('@/assets/images/paw-pattern.png')} style={[styles.bgPaw, styles.pawBottomLeft]} resizeMode="contain" tintColor={theme === 'dark' ? '#FFF' : undefined} />
 
         {/* TYTUŁ - DYNAMICZNY KOLOR */}
@@ -135,7 +137,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     zIndex: 999,
   },
-  // Zunifikowana szerokość 40 dla idealnego centrowania logo iFeeder
   headerSide: {
     width: 40,
     height: 40,
@@ -152,11 +153,30 @@ const styles = StyleSheet.create({
     position: 'absolute',
     width: 200,
     height: 200,
-    opacity: 0.4,
+    opacity: 0.6,
     zIndex: -1,
   },
-  pawTopRight: { top: 50, right: -20, transform: [{ rotate: '15deg' }] },
-  pawBottomLeft: { bottom: 50, left: -20, transform: [{ rotate: '-20deg' }] },
+  // ZMIANA: Ujednolicone pozycjonowanie oraz rotacje wszystkich łapek
+  pawTopRight: {
+    top: 10,
+    right: 20,
+    transform: [{ rotate: '15deg' }],
+  },
+  pawMidLeft: {
+    top: 250,
+    left: 20,
+    transform: [{ rotate: '-10deg' }],
+  },
+  pawMidRight: {
+    top: 500,
+    right: 30,
+    transform: [{ rotate: '5deg' }],
+  },
+  pawBottomLeft: {
+    top: 750,
+    left: 20,
+    transform: [{ rotate: '-20deg' }],
+  },
   scrollContent: {
     alignItems: 'center',
     paddingBottom: 100,
