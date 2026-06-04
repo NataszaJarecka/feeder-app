@@ -3,8 +3,8 @@ import { useColorScheme as useSystemColorScheme } from 'react-native';
 import { AppThemeMode, saveUserThemePreference } from '../services/userService';
 
 type ThemeContextType = {
-  themeMode: AppThemeMode;               // 'light' | 'dark' | 'system'
-  currentTheme: 'light' | 'dark';        // Rzeczywisty motyw renderowany
+  themeMode: AppThemeMode;
+  currentTheme: 'light' | 'dark';
   setThemeMode: (mode: AppThemeMode) => void;
   updateTheme: (mode: AppThemeMode) => Promise<void>;
 };
@@ -15,13 +15,11 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
   const systemColorScheme = useSystemColorScheme() ?? 'light';
   const [themeMode, setThemeMode] = useState<AppThemeMode>('system');
 
-  // Funkcja wywoływana ręcznie przez użytkownika w Ustawieniach
   const updateTheme = async (mode: AppThemeMode) => {
     setThemeMode(mode);
-    await saveUserThemePreference(mode); // Zapis do Firestore
+    await saveUserThemePreference(mode);
   };
 
-  // Wyliczamy, jaki motyw faktycznie zastosować na ekranie
   const currentTheme = themeMode === 'system' ? systemColorScheme : themeMode;
 
   return (

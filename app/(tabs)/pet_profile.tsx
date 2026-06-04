@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ThemedText } from '../../components/themed-text';
 import { ThemedView } from '../../components/themed-view';
 import { Colors } from '../../constants/Colors';
-import { useAppTheme } from '../../context/ThemeContext'; // <-- IMPORT KONTEKSTU MOTYWÓW
+import { useAppTheme } from '../../context/ThemeContext';
 import { getPetById, Pet } from '../../services/petService';
 
 const ActionButton = ({ title, onPress }: { title: string; onPress?: () => void }) => (
@@ -21,7 +21,6 @@ export default function PetProfileScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
-  // Pobieramy motyw aplikacji z Twojego kontekstu
   const { currentTheme } = useAppTheme();
   const currentColors = Colors[currentTheme];
   const theme = currentTheme;
@@ -32,8 +31,8 @@ export default function PetProfileScreen() {
   const [loading, setLoading] = useState<boolean>(true);
 
   const collarNames: Record<string, string> = {
-    blue: 'Blue collar',
-    orange: 'Orange collar',
+    blue: 'Niebieska obroża',
+    orange: 'Pomarańczowa obroża',
     green: 'Green collar',
     red: 'Red collar',
   };
@@ -79,7 +78,6 @@ export default function PetProfileScreen() {
   return (
     <ThemedView style={[styles.screenContainer, { backgroundColor: currentColors.background }]}>
 
-      {/* 1. GÓRNY PASEK (HEADER) Z SYSTMEM DYNAMICZNEGO CIENIA */}
       <View style={[
         styles.headerBar,
         {
@@ -103,17 +101,14 @@ export default function PetProfileScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* 2. GŁÓWNY OBSZAR TREŚCI */}
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* Tło (Pazurki zmieniające kolor na jasny w trybie ciemnym) */}
         <Image source={require('@/assets/images/paw-pattern.png')} style={[styles.singlePaw, styles.pawTopRight]} resizeMode="contain" tintColor={theme === 'dark' ? '#FFF' : undefined} />
         <Image source={require('@/assets/images/paw-pattern.png')} style={[styles.singlePaw, styles.pawMidLeft]} resizeMode="contain" tintColor={theme === 'dark' ? '#FFF' : undefined} />
         <Image source={require('@/assets/images/paw-pattern.png')} style={[styles.singlePaw, styles.pawMidRight]} resizeMode="contain" tintColor={theme === 'dark' ? '#FFF' : undefined} />
         <Image source={require('@/assets/images/paw-pattern.png')} style={[styles.singlePaw, styles.pawBottomLeft]} resizeMode="contain" tintColor={theme === 'dark' ? '#FFF' : undefined} />
 
-        {/* TYTUŁ SEKCJI */}
         <View style={styles.sectionTitleRow}>
-          <Text style={[styles.sectionTitle, { color: currentColors.text }]}>Pet's profile</Text>
+          <Text style={[styles.sectionTitle, { color: currentColors.text }]}>Profil zwierzaka</Text>
           <TouchableOpacity
             style={styles.iconWrapper}
             onPress={() => router.push({
@@ -124,7 +119,6 @@ export default function PetProfileScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* ZDJĘCIE PSA */}
         <View style={styles.photoContainer}>
           <Image
             source={
@@ -136,18 +130,16 @@ export default function PetProfileScreen() {
           />
         </View>
 
-        {/* DANE PSA */}
         <View style={styles.petInfo}>
           <Text style={[styles.petName, { color: currentColors.text }]}>{pet.name}</Text>
           <Text style={[styles.petDescription, { color: theme === 'dark' ? '#A0A0A0' : '#777' }]}>
-            {collarNames[pet.collar] || 'No collar assigned'}
+            {collarNames[pet.collar] || 'Brak przypisanej obroży'}
           </Text>
         </View>
 
-        {/* PRZYCISKI AKCJI */}
         <View style={styles.actionButtonsContainer}>
-          <ActionButton title="Feeding schedule" onPress={() => router.push('/schedule')} />
-          <ActionButton title="Feeding statistics" />
+          <ActionButton title="Harmonogram karmienia" onPress={() => router.push('/schedule')} />
+          <ActionButton title="Statystyki karmienia" onPress={() => router.push('/statistics')}/>
         </View>
       </ScrollView>
     </ThemedView>

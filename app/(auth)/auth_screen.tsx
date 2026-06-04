@@ -5,9 +5,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ThemedText } from '../../components/themed-text';
 import { ThemedView } from '../../components/themed-view';
 import { Colors } from '../../constants/Colors';
-import { useAppTheme } from '../../context/ThemeContext'; // <-- ZMIANA: Import Twojego kontekstu motywów
+import { useAppTheme } from '../../context/ThemeContext';
 
-// IMPORTUJEMY CZYSTE FUNKCJE Z SERWISU
 import { loginUser, registerNewUser } from '../../services/userService';
 
 const { width } = Dimensions.get('window');
@@ -15,7 +14,6 @@ const { width } = Dimensions.get('window');
 const AuthScreen = () => {
   const insets = useSafeAreaInsets();
 
-  // ZMIANA: Pobieramy aktualny motyw z Twojego kontekstu dla spójności w całej aplikacji
   const { currentTheme } = useAppTheme();
   const currentColors = Colors[currentTheme];
   const theme = currentTheme;
@@ -39,12 +37,12 @@ const AuthScreen = () => {
     setErrorMessage(null);
 
     if (!email.trim() || !password.trim() || (!isLogin && !username.trim())) {
-      setErrorMessage('Please fill in all required fields.');
+      setErrorMessage('Proszę wypełnić wszytskie wymagane pola.');
       return;
     }
 
     if (password.length < 6) {
-      setErrorMessage('Password must be at least 6 characters long.');
+      setErrorMessage('Hasło musi składać się z conajmniej 6 znaków.');
       return;
     }
 
@@ -53,37 +51,37 @@ const AuthScreen = () => {
     try {
       if (isLogin) {
         await loginUser(email, password);
-        console.log('Logged in successfully!');
+        console.log('Pomyślnie zalogowano!');
       } else {
         await registerNewUser(email, password, username);
-        console.log('Account created successfully!');
+        console.log('Pomyślnie stworzono konto!');
       }
     } catch (error: any) {
       console.error('Auth Error:', error.message || error.code);
 
       if (error.message === 'USERNAME_TAKEN') {
-        setErrorMessage('This username is already taken.');
+        setErrorMessage('Wybrana nazwa użytkownika jest już zajęta.');
       } else {
         switch (error.code) {
                     case 'auth/email-already-in-use':
-            setErrorMessage('An account with this email address already exists.');
+            setErrorMessage('Konto o podanym adresie e-mail juz istnieje.');
             break;
                     case 'auth/invalid-email':
-            setErrorMessage('The email address provided is invalid.');
+            setErrorMessage('Niepoprawny adres e-mail.');
             break;
                     case 'auth/weak-password':
-            setErrorMessage('The password is too weak. Please choose a stronger one.');
+            setErrorMessage('Wybrane hasło jest za słabe. Proszę wybrać silniejsze.');
             break;
                     case 'auth/invalid-credential':
           case 'auth/user-not-found':
           case 'auth/wrong-password':
-            setErrorMessage('Invalid email or password. Please try again.');
+            setErrorMessage('Niepoprawny e-mail lub hasło. Spróbuj ponownie.');
             break;
                     case 'auth/too-many-requests':
-            setErrorMessage('Too many unsuccessful attempts. Please try again later.');
+            setErrorMessage('Za dużo nieudanych prób logowania. Spróbuj ponownie później.');
             break;
                     default:
-            setErrorMessage('An unexpected error occurred. Please try again.');
+            setErrorMessage('Wystąpił nieoczekiany błąd. Spróbuj ponownie póżniej');
             break;
         }
       }
@@ -94,7 +92,6 @@ const AuthScreen = () => {
 
   return (
     <ThemedView style={[styles.container, { backgroundColor: currentColors.background }]}>
-      {/* ZMIANA: HEADER Z DYNAMICZNYM TŁEM I BIAŁYM CIENIEM W DARK MODZIE */}
       <View style={[
         styles.header,
         {
@@ -113,20 +110,16 @@ const AuthScreen = () => {
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* TŁO - ŁAPY (Zmieniają kolor na biały w trybie ciemnym) */}
         <Image source={require('@/assets/images/paw-pattern.png')} style={[styles.bgPaw, styles.pawTopRight]} resizeMode="contain" tintColor={theme === 'dark' ? '#FFF' : undefined} />
         <Image source={require('@/assets/images/paw-pattern.png')} style={[styles.bgPaw, styles.pawMidLeft]} resizeMode="contain" tintColor={theme === 'dark' ? '#FFF' : undefined} />
         <Image source={require('@/assets/images/paw-pattern.png')} style={[styles.bgPaw, styles.pawMidRight]} resizeMode="contain" tintColor={theme === 'dark' ? '#FFF' : undefined} />
         <Image source={require('@/assets/images/paw-pattern.png')} style={[styles.bgPaw, styles.pawBottomLeft]} resizeMode="contain" tintColor={theme === 'dark' ? '#FFF' : undefined} />
 
-        {/* TYTUŁ SEKCJI - DYNAMICZNY KOLOR */}
         <Text style={[styles.mainTitle, { color: currentColors.text }]}>
-          {isLogin ? 'Welcome back' : 'Create account'}
+          {isLogin ? 'Witaj' : 'Stwórz konto'}
         </Text>
 
-        {/* FORMULARZ WEJŚCIOWY */}
         <View style={styles.formContainer}>
-          {/* Pole Username */}
           {!isLogin && (
             <View style={[styles.inputWrapper, { backgroundColor: theme === 'dark' ? '#26292B' : '#FFF' }]}>
               <View style={styles.iconContainer}>
@@ -134,7 +127,7 @@ const AuthScreen = () => {
               </View>
               <TextInput
                 style={[styles.input, { color: currentColors.text }]}
-                placeholder="Username"
+                placeholder="Nazwa użytkownika"
                 placeholderTextColor={theme === 'dark' ? '#7A7A7A' : '#A0A0A0'}
                 value={username}
                 onChangeText={(text) => { setUsername(text); setErrorMessage(null); }}
@@ -144,14 +137,13 @@ const AuthScreen = () => {
             </View>
           )}
 
-          {/* Pole Email */}
           <View style={[styles.inputWrapper, { backgroundColor: theme === 'dark' ? '#26292B' : '#FFF' }]}>
             <View style={styles.iconContainer}>
               <Ionicons name="mail-outline" size={24} color="white" />
             </View>
             <TextInput
               style={[styles.input, { color: currentColors.text }]}
-              placeholder="Email address"
+              placeholder="Adres e-mail"
               placeholderTextColor={theme === 'dark' ? '#7A7A7A' : '#A0A0A0'}
               value={email}
               onChangeText={(text) => { setEmail(text); setErrorMessage(null); }}
@@ -161,14 +153,13 @@ const AuthScreen = () => {
             />
           </View>
 
-          {/* Pole Password */}
           <View style={[styles.inputWrapper, { backgroundColor: theme === 'dark' ? '#26292B' : '#FFF' }]}>
             <View style={styles.iconContainer}>
               <Ionicons name="lock-closed-outline" size={24} color="white" />
             </View>
             <TextInput
               style={[styles.input, { color: currentColors.text }]}
-              placeholder="Password"
+              placeholder="Hasło"
               placeholderTextColor={theme === 'dark' ? '#7A7A7A' : '#A0A0A0'}
               secureTextEntry
               value={password}
@@ -178,7 +169,6 @@ const AuthScreen = () => {
             />
           </View>
 
-          {/* KOMUNIKAT O BŁĘDZIE - DOSTOSOWANY DO CIEMNEGO MOTYWU */}
           {errorMessage && (
             <View style={[styles.errorBox, { backgroundColor: theme === 'dark' ? '#3D1A1A' : '#FFEBEE' }]}>
               <Ionicons name="alert-circle-outline" size={20} color={theme === 'dark' ? '#FF6B6B' : '#D32F2F'} />
@@ -186,23 +176,21 @@ const AuthScreen = () => {
             </View>
           )}
 
-          {/* GŁÓWNY PRZYCISK ZATWIERDZENIA */}
           <TouchableOpacity
             style={[styles.primaryBtn, loading && styles.btnDisabled]}
             onPress={handleSubmit}
             disabled={loading}
           >
             <Text style={styles.primaryBtnText}>
-              {loading ? 'Processing...' : (isLogin ? 'Log In' : 'Sign Up')}
+              {loading ? 'Ładowanie...' : (isLogin ? 'Zaloguj się' : 'Zarejestruj się')}
             </Text>
           </TouchableOpacity>
         </View>
 
-        {/* LINK PRZEŁĄCZAJĄCY */}
         <TouchableOpacity style={styles.switchBtn} onPress={toggleAuthMode} disabled={loading}>
           <Text style={[styles.switchText, { color: theme === 'dark' ? '#A0A0A0' : '#707070' }]}>
-            {isLogin ? "Don't have an account? " : "Already have an account? "}
-            <Text style={styles.switchTextBold}>{isLogin ? 'Sign up' : 'Log in'}</Text>
+            {isLogin ? "Nie masz jeszcze konta? " : "Masz już konto? "}
+            <Text style={styles.switchTextBold}>{isLogin ? 'Zarejestruj się' : 'Zaloguj się'}</Text>
           </Text>
         </TouchableOpacity>
       </ScrollView>
@@ -218,7 +206,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingBottom: 15,
     paddingHorizontal: 20,
-    zIndex: 999, // Zapewnia, że cień znajdzie się nad elementami przewijanymi (ScrollView)
+    zIndex: 999,
   },
   headerSide: {
     width: 40,

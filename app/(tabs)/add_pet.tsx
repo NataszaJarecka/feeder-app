@@ -7,23 +7,21 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ThemedText } from '../../components/themed-text';
 import { ThemedView } from '../../components/themed-view';
 import { Colors } from '../../constants/Colors';
-import { useAppTheme } from '../../context/ThemeContext'; // <-- ZMIANA: Importujemy Twój kontekst motywu
+import { useAppTheme } from '../../context/ThemeContext';
 import { auth } from '../../firebaseConfig';
 import { addPet } from '../../services/petService';
 
 const { width } = Dimensions.get('window');
 
 const collarOptions = [
-  { id: 'blue', label: 'Blue collar', color: '#5FB4FF' },
-  { id: 'orange', label: 'Orange collar', color: '#E99664' },
-  { id: 'green', label: 'Green collar', color: '#66B96A' },
+  { id: 'blue', label: 'Niebieska obroża', color: '#5FB4FF' },
+  { id: 'orange', label: 'Pomarańczowa obroża', color: '#E99664' },
 ];
 
 const AddPetScreen = () => {
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
-  // ZMIANA: Pobieramy zapisany w aplikacji motyw (light/dark) z Twojego kontekstu
   const { currentTheme } = useAppTheme();
   const currentColors = Colors[currentTheme];
   const theme = currentTheme;
@@ -38,7 +36,7 @@ const AddPetScreen = () => {
     const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
 
     if (permissionResult.granted === false) {
-      alert("Permission to access camera roll is required!");
+      alert("Wymagany dostęp do galerii zdjęć!");
       return;
     }
 
@@ -64,12 +62,12 @@ const AddPetScreen = () => {
 
   const handleSave = async () => {
     if (!name.trim()) {
-      setError('Please enter a pet name');
+      setError('Proszę wprowadzić imię zwierzaka');
       return;
     }
 
     if (!selectedPhoto) {
-      setError('Please select a photo for your pet');
+      setError('Proszę wybrać zdjęcie zwierzaka');
       return;
     }
 
@@ -87,7 +85,7 @@ const AddPetScreen = () => {
       router.replace('/pets');
     } catch (err) {
       console.error(err);
-      setError('Something went wrong while saving. Please try again.');
+      setError('Coś poszło nie tak podczas zapisywania. Spróbuj ponownie.');
     } finally {
       setIsLoading(false);
     }
@@ -96,7 +94,6 @@ const AddPetScreen = () => {
   return (
     <ThemedView style={[styles.container, { backgroundColor: currentColors.background }]}>
 
-      {/* HEADER Z DYNAMICZNYMI KOLORAMI I CIENIEM */}
       <View style={[
         styles.header,
         {
@@ -118,21 +115,20 @@ const AddPetScreen = () => {
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* ZMIANA: Dodano kompletny wzór łapek w tle ze spójnymi pozycjami i rotacjami */}
         <Image source={require('@/assets/images/paw-pattern.png')} style={[styles.bgPaw, styles.pawTopRight]} resizeMode="contain" tintColor={theme === 'dark' ? '#FFF' : undefined} />
         <Image source={require('@/assets/images/paw-pattern.png')} style={[styles.bgPaw, styles.pawMidLeft]} resizeMode="contain" tintColor={theme === 'dark' ? '#FFF' : undefined} />
         <Image source={require('@/assets/images/paw-pattern.png')} style={[styles.bgPaw, styles.pawMidRight]} resizeMode="contain" tintColor={theme === 'dark' ? '#FFF' : undefined} />
         <Image source={require('@/assets/images/paw-pattern.png')} style={[styles.bgPaw, styles.pawBottomLeft]} resizeMode="contain" tintColor={theme === 'dark' ? '#FFF' : undefined} />
 
-        <Text style={[styles.title, { color: currentColors.text }]}>Add pet</Text>
+        <Text style={[styles.title, { color: currentColors.text }]}>Dodaj zwierzaka</Text>
 
         <View style={styles.form}>
           <View style={styles.inputGroup}>
-            <ThemedText style={styles.inputLabel}>Pet name</ThemedText>
+            <ThemedText style={styles.inputLabel}>Imię</ThemedText>
             <TextInput
               value={name}
               onChangeText={setName}
-              placeholder="Enter your pet's name"
+              placeholder="Wprowadź imię zwierzaka"
               placeholderTextColor={currentTheme === 'dark' ? '#7A7A7A' : '#999'}
               style={[styles.input, { backgroundColor: currentTheme === 'dark' ? '#26292B' : '#F8F8F8', color: currentColors.text }]}
               editable={!isLoading}
@@ -140,7 +136,7 @@ const AddPetScreen = () => {
           </View>
 
           <View style={styles.section}>
-            <ThemedText style={styles.sectionTitle}>Choose photo</ThemedText>
+            <ThemedText style={styles.sectionTitle}>Wybierz zdjęcie</ThemedText>
 
             {selectedPhoto && (
               <View style={styles.imagePreviewContainer}>
@@ -159,7 +155,7 @@ const AddPetScreen = () => {
             >
               <Ionicons name="images" size={18} color="#FFFFFF" />
               <Text style={styles.galleryButtonText}>
-                {selectedPhoto ? 'Change photo' : 'Choose from gallery'}
+                {selectedPhoto ? 'Zmień zdjęcie' : 'Wybierz z galerii'}
               </Text>
             </TouchableOpacity>
           </View>
@@ -200,7 +196,7 @@ const AddPetScreen = () => {
             {isLoading ? (
               <ActivityIndicator color="#FFFFFF" />
             ) : (
-              <Text style={styles.saveButtonText}>Save pet</Text>
+              <Text style={styles.saveButtonText}>Zapisz</Text>
             )}
           </TouchableOpacity>
         </View>
@@ -346,7 +342,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
   },
-  // ZMIANA: Klasy stylizujące dekoracyjne łapki w tle siatki
   bgPaw: {
     position: 'absolute',
     width: 200,

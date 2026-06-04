@@ -58,14 +58,14 @@ export default function TabLayout() {
        <Tabs.Screen
         name="pets"
         options={{
-          title: 'My pets',
+          title: 'Zwierzaki',
           tabBarIcon: ({ color }) => <FontAwesome name="paw" size={28} color={color} />,
         }}
       />
       <Tabs.Screen
         name="schedule"
         options={{
-          title: 'Schedule',
+          title: 'Harmonogram',
           tabBarIcon: ({ color }) => <FontAwesome name="calendar" size={28} color={color} />,
         }}
       />
@@ -73,7 +73,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="statistics"
         options={{
-          title: 'Statistics',
+          title: 'Statystyki',
           tabBarIcon: ({ color }) => <FontAwesome name="bar-chart" size={28} color={color} />,
         }}
       />
@@ -81,7 +81,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="settings"
         options={{
-          title: 'Settings',
+          title: 'Ustawienia',
           tabBarIcon: ({ color }) => <FontAwesome name="cog" size={28} color={color} />,
         }}
       />

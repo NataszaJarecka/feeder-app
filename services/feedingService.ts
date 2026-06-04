@@ -10,13 +10,11 @@ export interface Meal {
   timestampUnix: number;
   portionGrams: number;
   status: 'scheduled' | 'fed' | 'missed';
-  // NOWE POLA DLA POWTARZALNOŚCI:
   recurrence?: RecurrenceType;
-  endDate?: number;   // Unix timestamp (sekundy) określający koniec serii
-  groupId?: string;   // Identyfikator łączący powtarzające się posiłki w jedną serię
+  endDate?: number;
+  groupId?: string;
 }
 
-// Rozszerzamy NewMeal o parametry powtarzalności z widoku
 export type NewMeal = Omit<Meal, 'id' | 'timestampUnix'>;
 
 const getUnixSeconds = (timestampField: any): number => {
@@ -28,10 +26,7 @@ const getUnixSeconds = (timestampField: any): number => {
   return Math.floor(dateObj.getTime() / 1000);
 };
 
-/**
- * FUNKCJA POMOCNICZA: Szuka najbliższego zaplanowanego karmienia w bazie
- * i zapisuje je do stałego dokumentu "nextFeeding/feeder_id"
- */
+
 const updateNextFeedingDoc = async (): Promise<void> => {
   try {
     const mealsCollection = collection(db, 'feedings');
@@ -68,14 +63,11 @@ const updateNextFeedingDoc = async (): Promise<void> => {
   }
 };
 
-/**
- * ZMODYFIKOWANA FUNKCJA: Dodaje pojedynczy posiłek lub generuje serię posiłków w pętli
- */
+
 export const addMeal = async (mealData: NewMeal): Promise<Meal> => {
   try {
     const mealsCollection = collection(db, 'feedings');
 
-    // Jeśli posiłek jest jednorazowy, wykonujemy standardowy, pojedynczy zapis
     if (!mealData.recurrence || mealData.recurrence === 'ONCE') {
       const fullMealData = {
         ...mealData,
@@ -87,9 +79,8 @@ export const addMeal = async (mealData: NewMeal): Promise<Meal> => {
       return { id: docRef.id, ...fullMealData };
     }
 
-    // JEŚLI RECURRENCE JEST 'DAILY' LUB 'WEEKLY':
     const batch = writeBatch(db);
-    const groupId = `${Date.now()}_${mealData.petId}`; // Unikalne ID całej serii
+    const groupId = `${Date.now()}_${mealData.petId}`;
 
     let currentMoment = mealData.timestamp instanceof Timestamp
       ? mealData.timestamp.toDate()
@@ -116,25 +107,21 @@ export const addMeal = async (mealData: NewMeal): Promise<Meal> => {
 
       batch.set(newDocRef, itemData);
 
-      // Zapisujemy referencję do pierwszego wygenerowanego elementu serii, aby go zwrócić z funkcji
       if (!firstCreatedMeal) {
         firstCreatedMeal = { id: newDocRef.id, ...itemData };
       }
 
-      // Przesuwamy wskaźnik daty w pętli do przodu
       if (mealData.recurrence === 'DAILY') {
         currentMoment = new Date(currentMoment.getTime() + ONE_DAY_MS);
       } else if (mealData.recurrence === 'WEEKLY') {
         currentMoment = new Date(currentMoment.getTime() + ONE_WEEK_MS);
       }
 
-      // Przerywamy pętlę, jeśli przekroczymy datę graniczną
       if (currentMoment.getTime() > endLimitTimestamp) {
         loop = false;
       }
     }
 
-    // Zapis zbiorczy wszystkich wygenerowanych powtórzeń za jednym zamachem
     await batch.commit();
     await updateNextFeedingDoc();
 
@@ -145,9 +132,7 @@ export const addMeal = async (mealData: NewMeal): Promise<Meal> => {
   }
 };
 
-/**
- * ZMODYFIKOWANA FUNKCJA: Aktualizuje pojedynczy posiłek, lub opcjonalnie całą serię w przód
- */
+
 export const updateMeal = async (mealId: string, updatedData: Partial<Meal>, updateSeries: boolean = false): Promise<void> => {
   try {
     const mealDocRef = doc(db, 'feedings', mealId);
@@ -157,16 +142,14 @@ export const updateMeal = async (mealId: string, updatedData: Partial<Meal>, upd
       dataToUpdate.timestampUnix = getUnixSeconds(updatedData.timestamp);
     }
 
-    // Jeśli nie aktualizujemy serii lub posiłek nie należy do żadnej serii (brak groupId)
     if (!updateSeries || !updatedData.groupId) {
       await updateDoc(mealDocRef, dataToUpdate);
     } else {
-      // Aktualizacja całej serii (zmieniamy parametry dla wszystkich przyszłych posiłków z tym samym groupId)
       const mealsCollection = collection(db, 'feedings');
       const q = query(
         mealsCollection,
         where('groupId', '==', updatedData.groupId),
-        where('status', '==', 'scheduled') // Zmieniamy tylko te, które jeszcze się nie odbyły
+        where('status', '==', 'scheduled')
       );
 
       const querySnapshot = await getDocs(q);
@@ -175,7 +158,6 @@ export const updateMeal = async (mealId: string, updatedData: Partial<Meal>, upd
       querySnapshot.forEach((docSnap) => {
         const docRef = doc(db, 'feedings', docSnap.id);
 
-        // Jeżeli zmieniono godzinę posiłku, musimy zachować oryginalny DZIEŃ dla każdego powtórzenia serii!
         if (updatedData.timestamp && docSnap.id !== mealId) {
           const currentDocDate = docSnap.data().timestamp.toDate();
           const newTimeDate = updatedData.timestamp instanceof Timestamp ? updatedData.timestamp.toDate() : new Date(updatedData.timestamp);
@@ -202,17 +184,13 @@ export const updateMeal = async (mealId: string, updatedData: Partial<Meal>, upd
   }
 };
 
-/**
- * ZMODYFIKOWANA FUNKCJA: Usuwa posiłek, lub opcjonalnie wszystkie powtórzenia danej serii w bazie
- */
+
 export const deleteMeal = async (mealId: string, deleteSeries: boolean = false, groupId?: string): Promise<void> => {
   try {
     if (!deleteSeries || !groupId) {
-      // Tradycyjne usunięcie jednego kafelka
       const mealDocRef = doc(db, 'feedings', mealId);
       await deleteDoc(mealDocRef);
     } else {
-      // Usuwanie całej serii powiązanego ze sobą harmonogramu za pomocą writeBatch
       const mealsCollection = collection(db, 'feedings');
       const q = query(mealsCollection, where('groupId', '==', groupId));
       const querySnapshot = await getDocs(q);

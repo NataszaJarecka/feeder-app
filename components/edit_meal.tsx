@@ -5,10 +5,9 @@ import { ActivityIndicator, Alert, Modal, Platform, ScrollView, StyleSheet, Text
 import { auth } from '../firebaseConfig';
 import { ThemedText } from './themed-text';
 
-// IMPORT SERWISÓW I TYPÓW
 import { Timestamp } from 'firebase/firestore';
 import { Colors } from '../constants/Colors';
-import { useAppTheme } from '../context/ThemeContext'; // <-- IMPORT KONTEKSTU MOTYWÓW
+import { useAppTheme } from '../context/ThemeContext';
 import { deleteMeal, Meal, updateMeal } from '../services/feedingService';
 import { getPetsByUser, Pet } from '../services/petService';
 
@@ -19,7 +18,6 @@ interface EditMealModalProps {
 }
 
 export function EditMealModal({ isVisible, onClose, meal }: EditMealModalProps) {
-  // Pobieramy motyw aplikacji z Twojego kontekstu
   const { currentTheme } = useAppTheme();
   const currentColors = Colors[currentTheme];
   const theme = currentTheme;
@@ -36,7 +34,6 @@ export function EditMealModal({ isVisible, onClose, meal }: EditMealModalProps) 
 
   const currentUserId = auth.currentUser?.uid || null;
 
-  // 1. Pobieranie zwierzaków użytkownika przy otwarciu modala
   useEffect(() => {
     if (isVisible) {
       const fetchPets = async () => {
@@ -54,7 +51,6 @@ export function EditMealModal({ isVisible, onClose, meal }: EditMealModalProps) 
     }
   }, [isVisible]);
 
-  // 2. Ładowanie istniejących danych posiłku do stanów formularza
   useEffect(() => {
     if (isVisible && meal) {
       setSelectedPet(meal.petId);
@@ -76,7 +72,6 @@ export function EditMealModal({ isVisible, onClose, meal }: EditMealModalProps) 
     }
   };
 
-  // ZAPIS ZMIAN (UPDATE)
   const handleSave = async () => {
     if (!meal) return;
     if (!selectedPet) {
@@ -102,7 +97,6 @@ export function EditMealModal({ isVisible, onClose, meal }: EditMealModalProps) 
     }
   };
 
-  // USUWANIE POSIŁKU (DELETE)
   const handleDelete = async () => {
     if (!meal) return;
 
@@ -113,23 +107,23 @@ export function EditMealModal({ isVisible, onClose, meal }: EditMealModalProps) 
         console.log("Pomyślnie usunięto posiłek!");
         onClose();
       } catch (error) {
-        console.error("Błąd trauma usuwania posiłku:", error);
+        console.error("Błąd podczas usuwania posiłku:", error);
       } finally {
         setIsDeleting(false);
       }
     };
 
     if (Platform.OS === 'web') {
-      if (window.confirm("Are you sure you want to delete this meal?")) {
+      if (window.confirm("Czy na pewno chcesz usunąć ten posiłek?")) {
         performDelete();
       }
     } else {
       Alert.alert(
-        "Delete Meal",
-        "Are you sure you want to delete this scheduled meal?",
+        "Usuń posiłek",
+        "Czy na pewno chcesz usunąć ten zaplanowany posiłek?",
         [
-          { text: "Cancel", style: "cancel" },
-          { text: "Delete", style: "destructive", onPress: performDelete }
+          { text: "Anuluj", style: "cancel" },
+          { text: "Usuń", style: "destructive", onPress: performDelete }
         ]
       );
     }
@@ -167,24 +161,21 @@ export function EditMealModal({ isVisible, onClose, meal }: EditMealModalProps) 
   return (
     <Modal animationType="fade" transparent={true} visible={isVisible} onRequestClose={onClose}>
       <View style={styles.modalOverlay}>
-        {/* Dynamiczne tło kontentu modala zależne od motywu */}
         <View style={[styles.modalContent, { backgroundColor: theme === 'dark' ? '#1E2123' : 'white' }]}>
 
-          {/* ZMIANA: Dodany przycisk zamknij (Cancel) w prawym górnym rogu */}
           <TouchableOpacity style={styles.closeButton} onPress={onClose} disabled={isSaving || isDeleting}>
             <Ionicons name="close" size={28} color={theme === 'dark' ? '#A0A0A0' : '#666'} />
           </TouchableOpacity>
 
-          <ThemedText style={[styles.modalTitle, { color: currentColors.text }]} type="title">Edit Meal</ThemedText>
+          <ThemedText style={[styles.modalTitle, { color: currentColors.text }]} type="title">Edytuj posiłek</ThemedText>
 
           <ScrollView showsVerticalScrollIndicator={false}>
-            {/* PETS */}
-            <ThemedText style={[styles.label, { color: currentColors.text }]}>Pet</ThemedText>
+            <ThemedText style={[styles.label, { color: currentColors.text }]}>Zwierzak</ThemedText>
 
             {loadingPets ? (
               <ActivityIndicator size="small" color="#F4A261" style={{ marginVertical: 10 }} />
             ) : pets.length === 0 ? (
-              <ThemedText style={styles.radioLabel}>No pets found.</ThemedText>
+              <ThemedText style={styles.radioLabel}>Nie znaleziono żadnych zwierzaków.</ThemedText>
             ) : (
               pets.map(pet => (
                 <TouchableOpacity key={pet.id} style={styles.radioRow} onPress={() => setSelectedPet(pet.id)}>
@@ -198,8 +189,7 @@ export function EditMealModal({ isVisible, onClose, meal }: EditMealModalProps) 
               ))
             )}
 
-            {/* TIME */}
-            <ThemedText style={[styles.label, { color: currentColors.text }]}>Time</ThemedText>
+            <ThemedText style={[styles.label, { color: currentColors.text }]}>Data i czas</ThemedText>
             <View style={styles.dateTimeContainer}>
               {Platform.OS === 'web' ? (
                 <>
@@ -220,7 +210,7 @@ export function EditMealModal({ isVisible, onClose, meal }: EditMealModalProps) 
                 <>
                   <TouchableOpacity style={styles.orangeInputSmall} onPress={() => setShowPicker('date')}>
                     <ThemedText style={styles.whiteText}>
-                      {date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                      {date.toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' })}
                     </ThemedText>
                   </TouchableOpacity>
                   <TouchableOpacity style={styles.orangeInputSmall} onPress={() => setShowPicker('time')}>
@@ -232,8 +222,7 @@ export function EditMealModal({ isVisible, onClose, meal }: EditMealModalProps) 
               )}
             </View>
 
-            {/* PORTION */}
-            <ThemedText style={[styles.label, { color: currentColors.text }]}>Portion</ThemedText>
+            <ThemedText style={[styles.label, { color: currentColors.text }]}>Porcja</ThemedText>
             <View style={styles.orangeInput}>
               <View style={styles.row}>
                 <TextInput
@@ -249,9 +238,7 @@ export function EditMealModal({ isVisible, onClose, meal }: EditMealModalProps) 
             </View>
           </ScrollView>
 
-          {/* KONTENER PRZYCISKÓW AKCJI */}
           <View style={styles.actionsContainer}>
-            {/* PRZYCISK USUWANIA (DELETE) */}
             <TouchableOpacity
               style={[
                 styles.deleteButton,
@@ -263,11 +250,10 @@ export function EditMealModal({ isVisible, onClose, meal }: EditMealModalProps) 
               {isDeleting ? (
                 <ActivityIndicator color="white" />
               ) : (
-                <ThemedText style={styles.deleteText}>Delete</ThemedText>
+                <ThemedText style={styles.deleteText}>Usuń</ThemedText>
               )}
             </TouchableOpacity>
 
-            {/* PRZYCISK ZAPISU (SAVE) */}
             <TouchableOpacity
               style={[
                 styles.doneButton,
@@ -279,14 +265,13 @@ export function EditMealModal({ isVisible, onClose, meal }: EditMealModalProps) 
               {isSaving ? (
                 <ActivityIndicator color="white" />
               ) : (
-                <ThemedText style={styles.doneText}>Save</ThemedText>
+                <ThemedText style={styles.doneText}>Gotowe</ThemedText>
               )}
             </TouchableOpacity>
           </View>
         </View>
       </View>
 
-      {/* MOBILE PICKER ONLY */}
       {showPicker && Platform.OS !== 'web' && (
         <DateTimePicker
           value={date}
@@ -308,7 +293,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalContent: {
-    position: 'relative', // ZMIANA: Konieczne do poprawnego pozycjonowania przycisku absolutnego
+    position: 'relative',
     width: '88%',
     borderRadius: 35,
     padding: 25,
@@ -319,7 +304,6 @@ const styles = StyleSheet.create({
     shadowRadius: 15,
     elevation: 10,
   },
-  // ZMIANA: Styl pozycjonujący przycisk krzyżyka w prawym górnym rogu
   closeButton: {
     position: 'absolute',
     top: 20,

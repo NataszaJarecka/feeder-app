@@ -21,14 +21,13 @@ const SettingsScreen = () => {
   const theme = currentTheme;
 
   const settingsOptions = [
-    { id: 'account', label: 'My account', icon: 'person-outline' },
-    { id: 'theme', label: 'Theme', icon: 'color-palette-outline' },
-    { id: 'notifications', label: 'Notifications', icon: 'notifications-outline' },
+    { id: 'account', label: 'Moje konto', icon: 'person-outline' },
+    { id: 'theme', label: 'Motyw', icon: 'color-palette-outline' },
+    { id: 'notifications', label: 'Powiadomienia', icon: 'notifications-outline' },
   ];
 
   return (
     <ThemedView style={[styles.container, { backgroundColor: currentColors.background }]}>
-      {/* HEADER Z DYNAMICZNYMI KOLORAMI I BIAŁYM CIENIEM */}
       <View style={[
         styles.header,
         {
@@ -53,16 +52,13 @@ const SettingsScreen = () => {
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* TŁO - ŁAPY */}
         <Image source={require('@/assets/images/paw-pattern.png')} style={[styles.bgPaw, styles.pawTopRight]} resizeMode="contain" tintColor={theme === 'dark' ? '#FFF' : undefined} />
         <Image source={require('@/assets/images/paw-pattern.png')} style={[styles.bgPaw, styles.pawMidLeft]} resizeMode="contain" tintColor={theme === 'dark' ? '#FFF' : undefined} />
         <Image source={require('@/assets/images/paw-pattern.png')} style={[styles.bgPaw, styles.pawMidRight]} resizeMode="contain" tintColor={theme === 'dark' ? '#FFF' : undefined} />
         <Image source={require('@/assets/images/paw-pattern.png')} style={[styles.bgPaw, styles.pawBottomLeft]} resizeMode="contain" tintColor={theme === 'dark' ? '#FFF' : undefined} />
 
-        {/* TYTUŁ SEKCJI */}
-        <Text style={[styles.mainTitle, { color: currentColors.text }]}>Settings</Text>
+        <Text style={[styles.mainTitle, { color: currentColors.text }]}>Ustawienia</Text>
 
-        {/* LISTA USTAWIEŃ */}
         <View style={styles.settingsList}>
           {settingsOptions.map((item) => (
             <TouchableOpacity
@@ -92,7 +88,6 @@ const SettingsScreen = () => {
           ))}
         </View>
 
-        {/* PRZYCISK LOGOUT */}
         <TouchableOpacity
           style={styles.logoutBtn}
           onPress={async () => {
@@ -103,7 +98,7 @@ const SettingsScreen = () => {
             }
           }}
         >
-          <Text style={styles.logoutText}>Log out</Text>
+          <Text style={styles.logoutText}>Wyloguj się</Text>
         </TouchableOpacity>
       </ScrollView>
     </ThemedView>
@@ -111,7 +106,6 @@ const SettingsScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  // NAPRAWIONO: Usunięto sztywne białe tło z container, teraz działa z destrukturyzacji u góry
   container: {
     flex: 1,
     overflow: 'visible',

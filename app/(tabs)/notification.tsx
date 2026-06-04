@@ -9,8 +9,7 @@ import { Colors } from '../../constants/Colors';
 import { useAppTheme } from '../../context/ThemeContext';
 import { clearAllUserNotifications, DisplayNotification, fetchUserNotifications } from '../../services/notificationService';
 
-// Zakładam, że DisplayNotification w twoim serwisie może mieć opcjonalne pole na zdjęcie:
-// Jeśli pole w Twojej bazie nazywa się inaczej (np. petImage), zmień 'avatarUrl' poniżej na właściwą nazwę.
+
 interface ExtendedDisplayNotification extends DisplayNotification {
   avatarUrl?: string;
 }
@@ -62,7 +61,6 @@ const NotificationsScreen = () => {
 
   return (
     <ThemedView style={[styles.container, { backgroundColor: currentColors.background }]}>
-      {/* HEADER */}
       <View style={[
         styles.header,
         {
@@ -87,7 +85,6 @@ const NotificationsScreen = () => {
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* TŁO - ŁAPY */}
         <Image source={require('@/assets/images/paw-pattern.png')} style={[styles.bgPaw, styles.pawTopRight]} resizeMode="contain" tintColor={theme === 'dark' ? '#FFF' : undefined} />
         <Image source={require('@/assets/images/paw-pattern.png')} style={[styles.bgPaw, styles.pawMidLeft]} resizeMode="contain" tintColor={theme === 'dark' ? '#FFF' : undefined} />
         <Image source={require('@/assets/images/paw-pattern.png')} style={[styles.bgPaw, styles.pawMidRight]} resizeMode="contain" tintColor={theme === 'dark' ? '#FFF' : undefined} />
@@ -95,7 +92,6 @@ const NotificationsScreen = () => {
 
         <View style={styles.content}>
 
-          {/* Przycisk clear all */}
           {notifications.length > 0 && (
             <TouchableOpacity
               style={[styles.clearAllBtn, clearing && { opacity: 0.5 }]}
@@ -103,7 +99,7 @@ const NotificationsScreen = () => {
               disabled={clearing}
             >
               <Text style={[styles.clearAllText, { color: theme === 'dark' ? '#A0A0A0' : '#666' }]}>
-                {clearing ? 'clearing...' : 'clear all'}
+                {clearing ? 'czyszczenie...' : 'wyczyść wszystko'}
               </Text>
             </TouchableOpacity>
           )}
@@ -115,7 +111,7 @@ const NotificationsScreen = () => {
           ) : notifications.length === 0 ? (
             <View style={styles.centerContainer}>
               <Text style={[styles.noNotificationsText, { color: theme === 'dark' ? '#7A7A7A' : '#A0A0A0' }]}>
-                No new notifications
+                Brak nowych powiadomień
               </Text>
             </View>
           ) : (
@@ -123,12 +119,10 @@ const NotificationsScreen = () => {
               <View key={item.id} style={styles.notificationWrapper}>
                 <Text style={[styles.timeLabel, { color: theme === 'dark' ? '#A0A0A0' : '#333' }]}>{item.time}</Text>
 
-                {/* ZMIANA: Tło kafetki jest zawsze pomarańczowe (#EEA179) */}
                 <View style={[styles.card, { backgroundColor: '#EEA179' }]}>
                   {item.type === 'pet' ? (
                     <>
                       <View style={styles.avatarPlaceholder}>
-                        {/* ZMIANA: Wyświetlanie zdjęcia zwierzaka jeśli istnieje URL, w przeciwnym wypadku ikonka łapki */}
                         {item.avatarUrl ? (
                           <Image
                             source={{ uri: item.avatarUrl }}
@@ -173,7 +167,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     zIndex: 999,
   },
-  headerSide: { width: 40, height: 40, justifyContent: 'center' },
+  headerSide: { width: 40, height: 40, ParentId: 'header', justifyContent: 'center' },
   logo: { fontSize: 32, fontWeight: 'bold', fontStyle: 'italic', flex: 1, textAlign: 'center' },
   bgPaw: { position: 'absolute', width: 200, height: 200, opacity: 0.6, zIndex: -1 },
   pawTopRight: { top: 10, right: 20, transform: [{ rotate: '15deg' }] },
@@ -188,7 +182,6 @@ const styles = StyleSheet.create({
   timeLabel: { fontSize: 18, marginLeft: 30, marginBottom: 5 },
   card: { borderRadius: 30, flexDirection: 'row', alignItems: 'center', padding: 12, paddingHorizontal: 15, minHeight: 90 },
   avatarPlaceholder: { width: 65, height: 65, borderRadius: 32.5, backgroundColor: 'white', justifyContent: 'center', alignItems: 'center', overflow: 'hidden' },
-  // DODANE: Styl dla zdjęcia zwierzaka wewnątrz okręgu
   petAvatar: { width: '100%', height: '100%', resizeMode: 'cover' },
   notificationText: { flex: 1, color: 'white', fontSize: 22, marginLeft: 15, fontWeight: '300', textAlign: 'center' },
   alertContent: { flexDirection: 'row', alignItems: 'center', flex: 1 },

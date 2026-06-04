@@ -14,26 +14,24 @@ const ThemeScreen = () => {
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
-  // Pobieramy dane z globalnego kontekstu motywów
   const { themeMode, currentTheme, updateTheme } = useAppTheme();
   const currentColors = Colors[currentTheme];
   const theme = currentTheme;
 
+  // Przetłumaczone etykiety opcji motywu
   const themeOptions = [
-    { id: 'light', label: 'Light Mode', icon: 'sunny-outline' },
-    { id: 'dark', label: 'Dark Mode', icon: 'moon-outline' },
-    { id: 'system', label: 'System Default', icon: 'cog-outline' },
+    { id: 'light', label: 'Jasny', icon: 'sunny-outline' },
+    { id: 'dark', label: 'Ciemny', icon: 'moon-outline' },
+    { id: 'system', label: 'Domyślny', icon: 'cog-outline' },
   ] as const;
 
   return (
     <ThemedView style={[styles.container, { backgroundColor: currentColors.background }]}>
 
-      {/* HEADER Z DOPASOWANYM KOLOREM PASKA (IDENTYCZNIE JAK W INNYCH PLIKACH) */}
       <View style={[
         styles.header,
         {
           paddingTop: insets.top + 15,
-          // DOPASOWANO: Identyczny kolor paska w trybie jasnym/ciemnym jak w innych widokach
           backgroundColor: theme === 'dark' ? '#1E2123' : '#FFFFFF',
           shadowColor: theme === 'dark' ? '#FFFFFF' : '#000000',
           shadowOpacity: theme === 'dark' ? 0.35 : 0.12,
@@ -55,7 +53,6 @@ const ThemeScreen = () => {
         style={{ backgroundColor: currentColors.background }}
         showsVerticalScrollIndicator={false}
       >
-        {/* TŁO - ŁAPY */}
         <Image
           source={require('@/assets/images/paw-pattern.png')}
           style={[styles.bgPaw, styles.pawTopRight]}
@@ -81,10 +78,8 @@ const ThemeScreen = () => {
           tintColor={theme === 'dark' ? '#FFF' : undefined}
         />
 
-        {/* TYTUŁ SEKCJI */}
-        <Text style={[styles.mainTitle, { color: currentColors.text }]}>Theme</Text>
+        <Text style={[styles.mainTitle, { color: currentColors.text }]}>Motyw</Text>
 
-        {/* LISTA OPCJI */}
         <View style={styles.optionsContainer}>
           {themeOptions.map((option) => {
             const isActive = themeMode === option.id;

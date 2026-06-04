@@ -8,7 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ThemedText } from '../../components/themed-text';
 import { ThemedView } from '../../components/themed-view';
 import { Colors } from '../../constants/Colors';
-import { useAppTheme } from '../../context/ThemeContext'; // <-- IMPORT KONTEKSTU MOTYWÓW
+import { useAppTheme } from '../../context/ThemeContext';
 import { auth } from '../../firebaseConfig';
 
 const { width } = Dimensions.get('window');
@@ -17,7 +17,6 @@ const StatisticsScreen = () => {
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
-  // Pobieramy motyw aplikacji z Twojego kontekstu
   const { currentTheme } = useAppTheme();
   const currentColors = Colors[currentTheme];
   const theme = currentTheme;
@@ -76,7 +75,7 @@ const StatisticsScreen = () => {
   };
 
   const formatHeaderDate = (): string => {
-    return currentDate.toLocaleDateString('en-US', {
+    return currentDate.toLocaleDateString('pl', {
       weekday: 'long',
       day: 'numeric',
       month: 'short',
@@ -90,7 +89,6 @@ const StatisticsScreen = () => {
 
   return (
     <ThemedView style={[styles.container, { backgroundColor: currentColors.background }]}>
-      {/* HEADER Z BIAŁYM CIENIEM DLA TRYBU CIEMNEGO */}
       <View style={[
         styles.header,
         {
@@ -115,15 +113,13 @@ const StatisticsScreen = () => {
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* TŁO - ŁAPY (Zmieniają odcień na biały w trybie nocnym) */}
         <Image source={require('@/assets/images/paw-pattern.png')} style={[styles.bgPaw, styles.pawTopRight]} resizeMode="contain" tintColor={theme === 'dark' ? '#FFF' : undefined} />
         <Image source={require('@/assets/images/paw-pattern.png')} style={[styles.bgPaw, styles.pawMidLeft]} resizeMode="contain" tintColor={theme === 'dark' ? '#FFF' : undefined} />
         <Image source={require('@/assets/images/paw-pattern.png')} style={[styles.bgPaw, styles.pawMidRight]} resizeMode="contain" tintColor={theme === 'dark' ? '#FFF' : undefined} />
         <Image source={require('@/assets/images/paw-pattern.png')} style={[styles.bgPaw, styles.pawBottomLeft]} resizeMode="contain" tintColor={theme === 'dark' ? '#FFF' : undefined} />
 
-        <Text style={[styles.mainTitle, { color: currentColors.text }]}>Statistics</Text>
+        <Text style={[styles.mainTitle, { color: currentColors.text }]}>Statystyki</Text>
 
-        {/* SELEKTOR DATY */}
         <View style={styles.dateSelector}>
           <TouchableOpacity onPress={() => changeDate(-1)}>
             <Ionicons name="chevron-back" size={30} color={currentColors.text} />
@@ -134,11 +130,10 @@ const StatisticsScreen = () => {
           </TouchableOpacity>
         </View>
 
-        {/* LOADING LUB LISTA KART ZWIERZAKÓW */}
         {loading ? (
           <ActivityIndicator size="large" color="#E99664" style={{ marginTop: 20 }} />
         ) : pets.length === 0 ? (
-          <Text style={styles.noStatsText}>You don't have any pets added yet.</Text>
+          <Text style={styles.noStatsText}>Nie masz jeszcze żadnych zwierzaków.</Text>
         ) : (
           pets.map((pet) => {
             const petStat = stats.find((s) => s.petId === pet.id);
@@ -153,7 +148,7 @@ const StatisticsScreen = () => {
                 ]}
               >
                 <View style={styles.cardHeader}>
-                  <Text style={styles.petName}>{pet.name || "No name"}</Text>
+                  <Text style={styles.petName}>{pet.name || "Brak imienia"}</Text>
                   <TouchableOpacity onPress={() => toggleExpand(pet.id)}>
                     <MaterialCommunityIcons name={isExpanded ? "minus" : "plus"} size={35} color="white" />
                   </TouchableOpacity>
@@ -163,17 +158,17 @@ const StatisticsScreen = () => {
                   <View style={styles.cardBody}>
                     {petStat ? (
                       <>
-                        <Text style={[styles.statLabel, { color: currentColors.text }]}>Meals eaten:</Text>
+                        <Text style={[styles.statLabel, { color: currentColors.text }]}>Zjedzone posiłki:</Text>
                         <Text style={styles.statValue}>{petStat.mealsEaten}</Text>
 
-                        <Text style={[styles.statLabel, { color: currentColors.text }]}>Unfinished meals:</Text>
+                        <Text style={[styles.statLabel, { color: currentColors.text }]}>Niezjedzone posiłki:</Text>
                         <Text style={styles.statValue}>{petStat.mealsMissed}</Text>
 
-                        <Text style={[styles.statLabel, { color: currentColors.text }]}>Average eating speed:</Text>
+                        <Text style={[styles.statLabel, { color: currentColors.text }]}>Średnia prędkość jedzenia:</Text>
                         <Text style={styles.statValue}>{petStat.eatingSpeed} g/s</Text>
                       </>
                     ) : (
-                      <Text style={styles.noStatsText}>No statistics available</Text>
+                      <Text style={styles.noStatsText}>Brak statystyk</Text>
                     )}
                   </View>
                 )}

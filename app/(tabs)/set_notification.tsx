@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ThemedText } from '../../components/themed-text';
 import { ThemedView } from '../../components/themed-view';
 import { Colors } from '../../constants/Colors';
-import { useAppTheme } from '../../context/ThemeContext'; // <-- IMPORT KONTEKSTU MOTYWÓW
+import { useAppTheme } from '../../context/ThemeContext';
 
 const { width } = Dimensions.get('window');
 
@@ -14,12 +14,10 @@ const NotificationSettingsScreen = () => {
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
-  // Pobieramy motyw aplikacji z Twojego kontekstu
   const { currentTheme } = useAppTheme();
   const currentColors = Colors[currentTheme];
   const theme = currentTheme;
 
-  // Stany dla przełączników
   const [isEnabled, setIsEnabled] = useState(true);
   const [mealAlerts, setMealAlerts] = useState(true);
   const [feederAlerts, setFeederAlerts] = useState(false);
@@ -28,7 +26,6 @@ const NotificationSettingsScreen = () => {
 
   return (
     <ThemedView style={[styles.container, { backgroundColor: currentColors.background }]}>
-      {/* HEADER Z DYNAMICZNYMI KOLORAMI I SPÓJNYM CIENIEM */}
       <View style={[
         styles.header,
         {
@@ -50,23 +47,19 @@ const NotificationSettingsScreen = () => {
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* ZMIANA: Zastąpiono stare 2 łapki pełnym, 4-elementowym wzorem łapek w tle ze Statistics/MyPets */}
         <Image source={require('@/assets/images/paw-pattern.png')} style={[styles.bgPaw, styles.pawTopRight]} resizeMode="contain" tintColor={theme === 'dark' ? '#FFF' : undefined} />
         <Image source={require('@/assets/images/paw-pattern.png')} style={[styles.bgPaw, styles.pawMidLeft]} resizeMode="contain" tintColor={theme === 'dark' ? '#FFF' : undefined} />
         <Image source={require('@/assets/images/paw-pattern.png')} style={[styles.bgPaw, styles.pawMidRight]} resizeMode="contain" tintColor={theme === 'dark' ? '#FFF' : undefined} />
         <Image source={require('@/assets/images/paw-pattern.png')} style={[styles.bgPaw, styles.pawBottomLeft]} resizeMode="contain" tintColor={theme === 'dark' ? '#FFF' : undefined} />
 
-        {/* TYTUŁ - DYNAMICZNY KOLOR */}
-        <Text style={[styles.mainTitle, { color: currentColors.text }]}>Notifications</Text>
+        <Text style={[styles.mainTitle, { color: currentColors.text }]}>Powiadomienia</Text>
 
-        {/* KARTA ZBIORCZA USTAWIEŃ */}
         <View style={[styles.settingsWrapper, { backgroundColor: theme === 'dark' ? '#26292B' : 'white' }]}>
 
-          {/* GŁÓWNY PRZEŁĄCZNIK */}
           <View style={styles.settingCard}>
             <View style={styles.textContainer}>
-              <Text style={[styles.settingTitle, { color: currentColors.text }]}>Allow Notifications</Text>
-              <Text style={[styles.settingSub, { color: theme === 'dark' ? '#A0A0A0' : '#888' }]}>Master switch for all alerts</Text>
+              <Text style={[styles.settingTitle, { color: currentColors.text }]}>Zezwól na powiadomienia</Text>
+              <Text style={[styles.settingSub, { color: theme === 'dark' ? '#A0A0A0' : '#888' }]}>Główny przełącznik dla wszystkich alertów</Text>
             </View>
             <Switch
               trackColor={{ false: "#D1D1D1", true: "#FAD7C2" }}
@@ -79,12 +72,11 @@ const NotificationSettingsScreen = () => {
 
           <View style={[styles.divider, { opacity: isEnabled ? 1 : 0.3, backgroundColor: theme === 'dark' ? '#333' : '#EEE' }]} />
 
-          {/* SEKCJA SZCZEGÓŁOWA */}
           <View style={{ opacity: isEnabled ? 1 : 0.5 }}>
             <View style={styles.settingCard}>
               <View style={styles.textContainer}>
-                <Text style={[styles.settingTitle, { color: currentColors.text }]}>Unfinished Meals</Text>
-                <Text style={[styles.settingSub, { color: theme === 'dark' ? '#A0A0A0' : '#888' }]}>Notify if pets leave food</Text>
+                <Text style={[styles.settingTitle, { color: currentColors.text }]}>Niedokończone posiłki</Text>
+                <Text style={[styles.settingSub, { color: theme === 'dark' ? '#A0A0A0' : '#888' }]}>Powiadom, jeśli zwierzak zostawi jedzenie</Text>
               </View>
               <Switch
                 trackColor={{ false: "#D1D1D1", true: "#FAD7C2" }}
@@ -97,8 +89,8 @@ const NotificationSettingsScreen = () => {
 
             <View style={styles.settingCard}>
               <View style={styles.textContainer}>
-                <Text style={[styles.settingTitle, { color: currentColors.text }]}>Feeder Status</Text>
-                <Text style={[styles.settingSub, { color: theme === 'dark' ? '#A0A0A0' : '#888' }]}>Alert when food level is low</Text>
+                <Text style={[styles.settingTitle, { color: currentColors.text }]}>Awarie i status karmnika</Text>
+                <Text style={[styles.settingSub, { color: theme === 'dark' ? '#A0A0A0' : '#888' }]}>Alertuj w przypadku problemów technicznych lub braku połączenia</Text>
               </View>
               <Switch
                 trackColor={{ false: "#D1D1D1", true: "#FAD7C2" }}
@@ -112,12 +104,11 @@ const NotificationSettingsScreen = () => {
 
         </View>
 
-        {/* PRZYCISK ZAPISZ */}
         <TouchableOpacity
           style={[styles.saveButton, { opacity: isEnabled ? 1 : 0.7 }]}
           onPress={() => router.replace('/settings' as any)}
         >
-          <Text style={styles.saveText}>Save Changes</Text>
+          <Text style={styles.saveText}>Zapisz zmiany</Text>
         </TouchableOpacity>
 
       </ScrollView>
@@ -156,7 +147,6 @@ const styles = StyleSheet.create({
     opacity: 0.6,
     zIndex: -1,
   },
-  // ZMIANA: Ujednolicone pozycjonowanie oraz rotacje wszystkich łapek
   pawTopRight: {
     top: 10,
     right: 20,

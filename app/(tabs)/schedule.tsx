@@ -4,7 +4,6 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Dimensions, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-// IMPORT MODALI I SERWISÓW
 import { AddMealModal } from '../../components/add_meal';
 import { EditMealModal } from '../../components/edit_meal';
 import { ThemedText } from '../../components/themed-text';
@@ -117,7 +116,7 @@ const MealTile = ({ meal, onPress, isWeeklyMode }: MealTileProps) => {
         style={styles.dailyTilePetImage}
       />
       <View style={styles.dailyTileInfo}>
-        <Text style={[styles.dailyTilePetName, { color: currentColors.text }]}>{pet ? pet.name : 'Loading...'}</Text>
+        <Text style={[styles.dailyTilePetName, { color: currentColors.text }]}>{pet ? pet.name : 'Wczytywanie...'}</Text>
         <Text style={[styles.dailyTileTime, { color: theme === 'dark' ? '#A0A0A0' : '#666' }]}>{`${formattedTime} • ${meal.portionGrams}g`}</Text>
       </View>
     </TouchableOpacity>
@@ -324,7 +323,7 @@ export default function ScheduleScreen() {
     fetchDailyMeals();
   };
 
-  const formattedDailyDate = selectedDate.toLocaleDateString('en-GB', {
+  const formattedDailyDate = selectedDate.toLocaleDateString('pl', {
     weekday: 'long',
     day: 'numeric',
     month: 'long',
@@ -335,7 +334,7 @@ export default function ScheduleScreen() {
     if (weekDates.length === 0) return 'Week';
     const firstDay = weekDates[0];
     const lastDay = weekDates[6];
-    return `${firstDay.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} - ${lastDay.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`;
+    return `${firstDay.toLocaleDateString('pl', { day: 'numeric', month: 'short' })} - ${lastDay.toLocaleDateString('pl', { day: 'numeric', month: 'short' })}`;
   };
 
   const currentHour = now.getHours();
@@ -345,7 +344,6 @@ export default function ScheduleScreen() {
 
   return (
     <ThemedView style={[styles.container, { backgroundColor: currentColors.background }]}>
-      {/* HEADER */}
       <View style={[
         styles.header,
         {
@@ -377,7 +375,7 @@ export default function ScheduleScreen() {
         <Image source={require('@/assets/images/paw-pattern.png')} style={[styles.bgPaw, styles.pawTopRight]} resizeMode="contain" tintColor={theme === 'dark' ? '#FFF' : undefined} />
         <Image source={require('@/assets/images/paw-pattern.png')} style={[styles.bgPaw, styles.pawMidLeft]} resizeMode="contain" tintColor={theme === 'dark' ? '#FFF' : undefined} />
 
-        <Text style={[styles.pageTitle, { color: currentColors.text }]}>Schedule</Text>
+        <Text style={[styles.pageTitle, { color: currentColors.text }]}>Harmonogram</Text>
 
         <View style={styles.controlsGroup}>
           {viewMode === 'daily' ? (
@@ -407,7 +405,7 @@ export default function ScheduleScreen() {
             onPress={() => setViewMode(viewMode === 'daily' ? 'weekly' : 'daily')}
           >
             <Text style={[styles.toggleViewButtonText, { color: '#FF8C42' }]}>
-              {viewMode === 'daily' ? 'Weekly View' : 'Daily View'}
+              {viewMode === 'daily' ? 'Widok tygodniowy' : 'Widok dzienny'}
             </Text>
           </TouchableOpacity>
         </View>
@@ -430,7 +428,6 @@ export default function ScheduleScreen() {
                 <MealTile key={meal.id} meal={meal} onPress={handleOpenEditModal} isWeeklyMode={false} />
               ))}
 
-              {/* ZMIANA: Wskaźnik teraz ma kropkę tylko z lewej i leci do samego końca ekranu bez kropki z prawej */}
               {isTodayDaily && (
                 <View style={[styles.dailyTimeIndicator, { top: dailyIndicatorPosition, left: 55, right: 0 }]}>
                   <View style={[styles.dailyIndicatorDot, { backgroundColor: currentColors.text }]} />
@@ -443,11 +440,10 @@ export default function ScheduleScreen() {
           <ScrollView horizontal={true} showsHorizontalScrollIndicator={true} bounces={false} style={styles.horizontalScroll}>
             <View style={[styles.megaGridContainer, { backgroundColor: currentColors.background }]}>
 
-              {/* NAGŁÓWKI DNI */}
               <View style={[styles.stickyHeaderContainer, { backgroundColor: currentColors.background }]}>
                 {weekDates.map((date, index) => {
                   const isTodayColumn = date.toDateString() === now.toDateString();
-                  const dayName = date.toLocaleDateString('en-GB', { weekday: 'short' });
+                  const dayName = date.toLocaleDateString('pl', { weekday: 'short' });
                   const dayNumber = date.getDate();
 
                   return (
@@ -469,7 +465,6 @@ export default function ScheduleScreen() {
                 })}
               </View>
 
-              {/* INTEGRACJA OSI CZASU I KOLUMN W SIATCE */}
               <View style={styles.scheduleGridWrapper}>
                 <View style={[styles.timeColumn, { backgroundColor: currentColors.background }]}>
                   {HOURS.map((hour) => (
@@ -497,11 +492,9 @@ export default function ScheduleScreen() {
         )}
       </ScrollView>
 
-      {/* MODALE */}
       <AddMealModal isVisible={isAddModalVisible} onClose={handleCloseModals} />
       <EditMealModal isVisible={isEditModalVisible} meal={selectedMeal} onClose={handleCloseModals} />
 
-      {/* PRZYCISK FAB */}
       <TouchableOpacity style={styles.fab} onPress={() => setIsAddModalVisible(true)}>
         <Ionicons name="add" size={40} color="white" />
       </TouchableOpacity>
@@ -535,17 +528,14 @@ const styles = StyleSheet.create({
   pawTopRight: { top: 10, right: 20, transform: [{ rotate: '15deg' }] },
   pawMidLeft: { top: 250, left: 20, transform: [{ rotate: '-10deg' }] },
 
-  // ZMIANA: Usunięto padding z prawej i dopasowano do pełnej szerokości, żeby elementy mogły dociągać do końca ekranu
   dailyTimelineContainer: { width: SCREEN_WIDTH, height: TIMELINE_HEIGHT, paddingLeft: 10, position: 'relative' },
   dailyHourRow: { flexDirection: 'row', height: HOUR_HEIGHT },
   dailyHourLabelContainer: { width: 60, alignItems: 'flex-end', paddingRight: 10, marginTop: -10 },
   dailyHourLabel: { fontSize: 14 },
-  // ZMIANA: Dodano marginRight: 15, dzięki czemu szara linia tła siatki ładnie się kończy, nie dotykając chamsko krawędzi
   dailyHourSlot: { flex: 1, borderTopWidth: 1, marginLeft: 5, borderRadius: 10, marginBottom: 5, marginRight: 15 },
   dailyTimeIndicator: { position: 'absolute', flexDirection: 'row', alignItems: 'center', zIndex: 100 },
   dailyIndicatorLine: { flex: 1, height: 2 },
   dailyIndicatorDot: { width: 6, height: 6, borderRadius: 3 },
-  // ZMIANA: Zmieniono right: 5 na right: 15, aby kafelki nie były ucinane po prawej i miały estetyczny margines od brzegu
   dailyMealTile: { position: 'absolute', left: 75, right: 15, height: 60, borderWidth: 1, borderRadius: 15, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, zIndex: 90, elevation: 5, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 3 },
   dailyTilePetImage: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#ccc' },
   dailyTileInfo: { marginLeft: 12, justifyContent: 'center', flex: 1 },

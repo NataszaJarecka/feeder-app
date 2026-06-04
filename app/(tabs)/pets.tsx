@@ -6,7 +6,7 @@ import { ActivityIndicator, Image, Platform, ScrollView, StyleSheet, Text, Touch
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ThemedView } from '../../components/themed-view';
 import { Colors } from '../../constants/Colors';
-import { useAppTheme } from '../../context/ThemeContext'; // <-- IMPORT KONTEKSTU MOTYWÓW
+import { useAppTheme } from '../../context/ThemeContext';
 import { auth } from '../../firebaseConfig';
 
 import { getPetsByUser, Pet } from '../../services/petService';
@@ -61,7 +61,6 @@ export default function MyPetsScreen() {
 
   return (
     <ThemedView style={[styles.container, { backgroundColor: currentColors.background }]}>
-      {/* HEADER Z DYNAMICZNYMI KOLORAMI I SPÓJNYM CIENIEM */}
       <View style={[
         styles.header,
         {
@@ -86,13 +85,12 @@ export default function MyPetsScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* ZMIANA: Dodano kompletny zestaw łapek w tle, skopiowany 1:1 ze StatisticsScreen */}
         <Image source={require('@/assets/images/paw-pattern.png')} style={[styles.bgPaw, styles.pawTopRight]} resizeMode="contain" tintColor={theme === 'dark' ? '#FFF' : undefined} />
         <Image source={require('@/assets/images/paw-pattern.png')} style={[styles.bgPaw, styles.pawMidLeft]} resizeMode="contain" tintColor={theme === 'dark' ? '#FFF' : undefined} />
         <Image source={require('@/assets/images/paw-pattern.png')} style={[styles.bgPaw, styles.pawMidRight]} resizeMode="contain" tintColor={theme === 'dark' ? '#FFF' : undefined} />
         <Image source={require('@/assets/images/paw-pattern.png')} style={[styles.bgPaw, styles.pawBottomLeft]} resizeMode="contain" tintColor={theme === 'dark' ? '#FFF' : undefined} />
 
-        <Text style={[styles.pageTitle, { color: currentColors.text }]}>My Pets</Text>
+        <Text style={[styles.pageTitle, { color: currentColors.text }]}>Moje zwierzaki</Text>
 
         {loading ? (
           <View style={styles.centerContainer}>
@@ -143,7 +141,7 @@ export default function MyPetsScreen() {
               >
                 <Ionicons name="add" size={50} color={currentColors.icon} />
               </TouchableOpacity>
-              <ThemedText style={[styles.petName, { color: currentColors.text }]}>Add</ThemedText>
+              <ThemedText style={[styles.petName, { color: currentColors.text }]}>Dodaj</ThemedText>
             </View>
 
           </View>
@@ -220,7 +218,6 @@ const styles = StyleSheet.create({
     opacity: 0.6,
     zIndex: -1,
   },
-  // ZMIANA: Komplet stylowania dla pozycjonowania łapek z ekranu statystyk
   pawTopRight: {
     top: 10,
     right: 20,

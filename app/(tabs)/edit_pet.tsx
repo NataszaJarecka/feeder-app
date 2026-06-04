@@ -7,23 +7,21 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ThemedText } from '../../components/themed-text';
 import { ThemedView } from '../../components/themed-view';
 import { Colors } from '../../constants/Colors';
-import { useAppTheme } from '../../context/ThemeContext'; // <-- IMPORT KONTEKSTU MOTYWÓW
+import { useAppTheme } from '../../context/ThemeContext';
 import { auth } from '../../firebaseConfig';
 import { deletePetWithMeals, getPetById, updatePet } from '../../services/petService';
 
 const { width } = Dimensions.get('window');
 
 const collarOptions = [
-  { id: 'blue', label: 'Blue collar', color: '#5FB4FF' },
-  { id: 'orange', label: 'Orange collar', color: '#E99664' },
-  { id: 'green', label: 'Green collar', color: '#66B96A' },
+  { id: 'blue', label: 'Niebieska obroża', color: '#5FB4FF' },
+  { id: 'orange', label: 'Pomarańczowa obroża', color: '#E99664' },
 ];
 
 const EditPetScreen = () => {
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
-  // Pobieramy motyw aplikacji z Twojego kontekstu
   const { currentTheme } = useAppTheme();
   const currentColors = Colors[currentTheme];
   const theme = currentTheme;
@@ -79,7 +77,7 @@ const EditPetScreen = () => {
   const pickImage = async () => {
     const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (permissionResult.granted === false) {
-      alert("Permission to access camera roll is required!");
+      alert("Wymagany dostęp do galerii zdjęć!");
       return;
     }
 
@@ -103,7 +101,7 @@ const EditPetScreen = () => {
 
   const handleUpdate = async () => {
     if (!name.trim()) {
-      setError('Please enter a pet name');
+      setError('Proszę wprowadzić imię zwierzaka!');
       return;
     }
 
@@ -122,7 +120,7 @@ const EditPetScreen = () => {
       router.replace('/pets');
     } catch (err) {
       console.error(err);
-      setError('Something went wrong while updating. Please try again.');
+      setError('Coś poszło nie tak podczas aktualizowania danych. Spróbuj ponownie później.');
     } finally {
       setIsSaving(false);
     }
@@ -130,12 +128,12 @@ const EditPetScreen = () => {
 
   const handleDelete = () => {
     Alert.alert(
-      "Delete Pet",
-      `Are you sure you want to permanently delete ${name || 'this pet'}?`,
+      "Usuń zwierzaka",
+      `Czy na pewno chcesz usunąć zwierzaka ${name || ''}?`,
       [
-        { text: "Cancel", style: "cancel" },
+        { text: "Cofnij", style: "cancel" },
         {
-          text: "Delete",
+          text: "Usuń",
           style: "destructive",
           onPress: async () => {
             try {
@@ -145,7 +143,7 @@ const EditPetScreen = () => {
               router.replace('/pets');
             } catch (err) {
               console.error(err);
-              Alert.alert("Error", "Could not delete pet. Please try again.");
+              Alert.alert("Error", "Błąd podczas usuwania zwierzaka. Spróbuj jeszcze raz.");
               setIsSaving(false);
             }
           }
@@ -176,7 +174,6 @@ const EditPetScreen = () => {
 
   return (
     <ThemedView style={[styles.container, { backgroundColor: currentColors.background }]}>
-      {/* HEADER Z DYNAMICZNYM TŁEM, KOLORAMI I SPÓJNYM CIENIEM */}
       <View style={[
         styles.header,
         {
@@ -201,14 +198,12 @@ const EditPetScreen = () => {
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* ZMIANA: Dodano pełny, 4-elementowy wzór dekoracyjny łapek w tle */}
         <Image source={require('@/assets/images/paw-pattern.png')} style={[styles.bgPaw, styles.pawTopRight]} resizeMode="contain" tintColor={theme === 'dark' ? '#FFF' : undefined} />
         <Image source={require('@/assets/images/paw-pattern.png')} style={[styles.bgPaw, styles.pawMidLeft]} resizeMode="contain" tintColor={theme === 'dark' ? '#FFF' : undefined} />
         <Image source={require('@/assets/images/paw-pattern.png')} style={[styles.bgPaw, styles.pawMidRight]} resizeMode="contain" tintColor={theme === 'dark' ? '#FFF' : undefined} />
         <Image source={require('@/assets/images/paw-pattern.png')} style={[styles.bgPaw, styles.pawBottomLeft]} resizeMode="contain" tintColor={theme === 'dark' ? '#FFF' : undefined} />
 
-        {/* DYNAMICZNY TYTUŁ STRONY */}
-        <Text style={[styles.pageTitle, { color: currentColors.text }]}>Edit Pet</Text>
+        <Text style={[styles.pageTitle, { color: currentColors.text }]}>Edytuj zwierzaka</Text>
 
         <View style={styles.form}>
           <View style={styles.imageSection}>
@@ -229,16 +224,16 @@ const EditPetScreen = () => {
 
             <TouchableOpacity style={styles.galleryButton} activeOpacity={0.8} onPress={pickImage} disabled={isSaving}>
               <Ionicons name="camera" size={18} color="#FFFFFF" />
-              <Text style={styles.galleryButtonText}>Change Photo</Text>
+              <Text style={styles.galleryButtonText}>Zmień zdjęcie</Text>
             </TouchableOpacity>
           </View>
 
           <View style={styles.inputGroup}>
-            <ThemedText style={styles.inputLabel}>Pet name</ThemedText>
+            <ThemedText style={styles.inputLabel}>Imię</ThemedText>
             <TextInput
               value={name}
               onChangeText={setName}
-              placeholder="Enter pet's name"
+              placeholder="Wprowadź imię zwierzaka"
               placeholderTextColor={theme === 'dark' ? '#7A7A7A' : '#999'}
               style={[styles.input, { backgroundColor: theme === 'dark' ? '#26292B' : '#F8F8F8', color: currentColors.text }]}
               editable={!isSaving}
@@ -246,7 +241,7 @@ const EditPetScreen = () => {
           </View>
 
           <View style={styles.section}>
-            <ThemedText style={styles.sectionTitle}>Choose collar</ThemedText>
+            <ThemedText style={styles.sectionTitle}>Wybierz obrożę</ThemedText>
             {collarOptions.map((collar) => {
               const active = selectedCollar === collar.id;
               return (
@@ -276,7 +271,7 @@ const EditPetScreen = () => {
             activeOpacity={0.8}
             disabled={isSaving}
           >
-            {isSaving ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.saveButtonText}>Save Changes</Text>}
+            {isSaving ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.saveButtonText}>Zapisz zmiany</Text>}
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -286,7 +281,7 @@ const EditPetScreen = () => {
             disabled={isSaving}
           >
             <Ionicons name="trash-outline" size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
-            <Text style={styles.deleteButtonText}>Delete Pet</Text>
+            <Text style={styles.deleteButtonText}>Usuń zwierzaka</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -473,7 +468,6 @@ const styles = StyleSheet.create({
     color: 'white',
     fontWeight: '600',
   },
-  // ZMIANA: Dodano komplet uniwersalnych klas pozycjonujących łapki w tle
   bgPaw: {
     position: 'absolute',
     width: 200,

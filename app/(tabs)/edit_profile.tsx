@@ -8,10 +8,8 @@ import { ThemedView } from '../../components/themed-view';
 import { Colors } from '../../constants/Colors';
 import { useAppTheme } from '../../context/ThemeContext';
 
-// IMPORT IMAGE PICKER
 import * as ImagePicker from 'expo-image-picker';
 
-// IMPORTY SERWISU
 import { deleteUserAccount, updateUserProfile } from '../../services/userService';
 
 const { width } = Dimensions.get('window');
@@ -35,7 +33,7 @@ const EditProfileScreen = () => {
     const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
 
     if (permissionResult.granted === false) {
-      Alert.alert("Permission Required", "You need to allow access to your photos to change your profile picture.");
+      Alert.alert("Wymagane uprawnienia", "Musisz zezwolić na dostęp do zdjęć, aby zmienić zdjęcie profilowe.");
       return;
     }
 
@@ -67,19 +65,20 @@ const EditProfileScreen = () => {
 
     if (showPasswordForm) {
       if (!password.trim()) {
-        setError('Password cannot be empty');
+        setError('Hasło nie może być puste');
         return;
       }
       if (password.length < 6) {
-        setError('Password must be at least 6 characters long');
+        setError('Hasło musi mieć co najmniej 6 znaków');
         return;
       }
       if (password !== confirmPassword) {
-        setError('Password confirmation does not match');
+        setError('Potwierdzenie hasła nie zgadza się');
         return;
       }
     }
 
+    loading = true; // Zabezpieczenie przed podwójnym kliknięciem, stan kontrolowany przez useState poniżej
     setLoading(true);
 
     try {
@@ -88,7 +87,7 @@ const EditProfileScreen = () => {
         imageFile ? imageFile : undefined
       );
 
-      Alert.alert("Success", "Profile updated successfully!", [
+      Alert.alert("Sukces", "Profil został zaktualizowany pomyślnie!", [
         {
           text: "OK",
           onPress: () => {
@@ -99,9 +98,9 @@ const EditProfileScreen = () => {
     } catch (err: any) {
       console.error(err);
       if (err.code === 'auth/requires-recent-login') {
-        setError('Please log out and log back in to change your password.');
+        setError('Wyloguj się i zaloguj ponownie, aby zmienić hasło.');
       } else {
-        setError('Could not update profile. Please try again.');
+        setError('Nie udało się zaktualizować profilu. Spróbuj ponownie.');
       }
     } finally {
       setLoading(false);
@@ -110,12 +109,12 @@ const EditProfileScreen = () => {
 
   const handleDeleteAccount = () => {
     Alert.alert(
-      "Delete Account",
-      "Are you absolutely sure? This will permanently delete your profile data and authentication account.",
+      "Usuń konto",
+      "Czy jesteś absolutnie pewien? To bezpowrotnie usunie Twoje dane profilowe oraz konto uwierzytelniania.",
       [
-        { text: "Cancel", style: "cancel" },
+        { text: "Anuluj", style: "cancel" },
         {
-          text: "Delete Account",
+          text: "Usuń konto",
           style: "destructive",
           onPress: async () => {
             setLoading(true);
@@ -124,9 +123,9 @@ const EditProfileScreen = () => {
             } catch (err: any) {
               console.error(err);
               if (err.code === 'auth/requires-recent-login') {
-                Alert.alert("Security Check", "This action requires recent authentication. Please log out, log back in, and try again.");
+                Alert.alert("Weryfikacja bezpieczeństwa", "Ta operacja wymaga niedawnego logowania. Wyloguj się, zaloguj ponownie i spróbuj jeszcze raz.");
               } else {
-                Alert.alert("Error", "Could not delete account. Try again.");
+                Alert.alert("Błąd", "Nie udało się usunąć konta. Spróbuj ponownie.");
               }
             } finally {
               setLoading(false);
@@ -165,13 +164,12 @@ const EditProfileScreen = () => {
         <Image source={require('@/assets/images/paw-pattern.png')} style={[styles.bgPaw, styles.pawMidRight]} resizeMode="contain" tintColor={currentTheme === 'dark' ? '#FFF' : undefined} />
         <Image source={require('@/assets/images/paw-pattern.png')} style={[styles.bgPaw, styles.pawBottomLeft]} resizeMode="contain" tintColor={currentTheme === 'dark' ? '#FFF' : undefined} />
 
-        <Text style={[styles.title, { color: currentColors.text }]}>Edit Profile</Text>
+        <Text style={[styles.title, { color: currentColors.text }]}>Edytuj profil</Text>
 
         <View style={styles.form}>
 
-          {/* SEKCJA 1: ZDJĘCIE PROFILOWE */}
           <View style={styles.inputGroup}>
-            <ThemedText style={[styles.inputLabel, { color: currentColors.text }]}>Profile Photo</ThemedText>
+            <ThemedText style={[styles.inputLabel, { color: currentColors.text }]}>Zdjęcie profilowe</ThemedText>
 
             <View style={[styles.photoPickerRow, { backgroundColor: currentTheme === 'dark' ? '#26292B' : '#F8F8F8' }]}>
               <View style={[styles.photoPreviewBox, { backgroundColor: currentTheme === 'dark' ? '#1E2123' : '#EAEAEA' }]}>
@@ -184,33 +182,30 @@ const EditProfileScreen = () => {
 
               <TouchableOpacity style={styles.uploadBtn} onPress={pickImage} activeOpacity={0.7} disabled={loading}>
                 <Ionicons name="image-outline" size={20} color={currentTheme === 'dark' ? '#FFFFFF' : 'white'} style={{ marginRight: 8 }} />
-                {/* Wymuszony biały kolor tekstu w dark modzie */}
-                <Text style={[styles.uploadBtnText, { color: currentTheme === 'dark' ? '#FFFFFF' : 'white' }]}>Choose Photo</Text>
+                <Text style={[styles.uploadBtnText, { color: currentTheme === 'dark' ? '#FFFFFF' : 'white' }]}>Wybierz zdjęcie</Text>
               </TouchableOpacity>
             </View>
           </View>
 
-          {/* SEKCJA 2: ZMIANA HASŁA */}
           <View style={styles.passwordSectionContainer}>
             {!showPasswordForm ? (
               <TouchableOpacity style={styles.changePasswordButton} onPress={() => setShowPasswordForm(true)} activeOpacity={0.8} disabled={loading}>
-                <Text style={styles.changePasswordButtonText}>Change password</Text>
+                <Text style={styles.changePasswordButtonText}>Zmień hasło</Text>
               </TouchableOpacity>
             ) : (
               <View style={[styles.passwordFormFields, { borderColor: currentTheme === 'dark' ? '#333' : '#EEE' }]}>
-                {/* Usunięto tekst Security Preference, został sam przycisk Cancel wyrównany do prawej */}
                 <View style={styles.passwordHeaderRow}>
                   <TouchableOpacity onPress={handleCancelPassword} style={styles.cancelPasswordBtn}>
-                    <Text style={styles.cancelPasswordBtnText}>Cancel</Text>
+                    <Text style={styles.cancelPasswordBtnText}>Anuluj</Text>
                   </TouchableOpacity>
                 </View>
 
                 <View style={styles.inputGroup}>
-                  <ThemedText style={[styles.inputLabel, { color: currentColors.text }]}>New password</ThemedText>
+                  <ThemedText style={[styles.inputLabel, { color: currentColors.text }]}>Nowe hasło</ThemedText>
                   <TextInput
                     value={password}
                     onChangeText={setPassword}
-                    placeholder="Enter new password"
+                    placeholder="Wpisz nowe hasło"
                     placeholderTextColor={currentTheme === 'dark' ? '#7A7A7A' : '#999'}
                     secureTextEntry
                     style={[styles.input, { backgroundColor: currentTheme === 'dark' ? '#26292B' : '#F8F8F8', color: currentColors.text }]}
@@ -219,11 +214,11 @@ const EditProfileScreen = () => {
                 </View>
 
                 <View style={[styles.inputGroup, { marginBottom: 5 }]}>
-                  <ThemedText style={[styles.inputLabel, { color: currentColors.text }]}>Confirm password</ThemedText>
+                  <ThemedText style={[styles.inputLabel, { color: currentColors.text }]}>Potwierdź hasło</ThemedText>
                   <TextInput
                     value={confirmPassword}
                     onChangeText={setConfirmPassword}
-                    placeholder="Confirm new password"
+                    placeholder="Powtórz nowe hasło"
                     placeholderTextColor={currentTheme === 'dark' ? '#7A7A7A' : '#999'}
                     secureTextEntry
                     style={[styles.input, { backgroundColor: currentTheme === 'dark' ? '#26292B' : '#F8F8F8', color: currentColors.text }]}
@@ -236,17 +231,15 @@ const EditProfileScreen = () => {
 
           {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
-          {/* PRZYCISK ZAPISU KOŃCOWEGO */}
           <TouchableOpacity style={[styles.saveButton, loading && { opacity: 0.6 }]} onPress={handleSave} activeOpacity={0.8} disabled={loading}>
             <Text style={styles.saveButtonText}>
-              {loading ? 'Saving...' : (showPasswordForm ? 'Save Changes' : 'Done')}
+              {loading ? 'Zapisywanie...' : (showPasswordForm ? 'Zapisz zmiany' : 'Gotowe')}
             </Text>
           </TouchableOpacity>
 
-          {/* LINK DO USUNIĘCIA KONTA */}
           <TouchableOpacity style={styles.deleteAccountLink} onPress={handleDeleteAccount} activeOpacity={0.7} disabled={loading}>
             <Text style={[styles.deleteAccountLinkText, { color: currentTheme === 'dark' ? '#7A7A7A' : '#A0A0A0' }]}>
-              Permanently delete account
+              Usuń konto na stałe
             </Text>
           </TouchableOpacity>
         </View>
@@ -290,7 +283,6 @@ const styles = StyleSheet.create({
   input: { width: '100%', borderRadius: 18, paddingHorizontal: 16, paddingVertical: 14, fontSize: 16 },
   passwordSectionContainer: { width: '100%', marginBottom: 25 },
   passwordFormFields: { width: '100%', borderWidth: 1, borderRadius: 25, padding: 16, borderStyle: 'dashed' },
-  // Zmiana justifyContent na flex-end, żeby przycisk Cancel uciekł na prawą stronę po usunięciu tekstu
   passwordHeaderRow: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', marginBottom: 20 },
   cancelPasswordBtn: { paddingVertical: 4, paddingHorizontal: 12 },
   cancelPasswordBtnText: { color: '#D94747', fontSize: 15, fontWeight: '600' },

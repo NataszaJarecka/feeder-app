@@ -18,27 +18,21 @@ import {
 } from 'firebase/firestore';
 import { auth, db } from '../firebaseConfig';
 
-// 1. Inicjalizacja klienta Supabase z Twoimi danymi projektowymi
 const SUPABASE_URL = 'https://skprsjpylwpktvczmrkl.supabase.co'.trim();
 const SUPABASE_ANON_KEY = 'sb_publishable_Vcp4dKaoMGZXteoWbY-q2A_FMg9sTcy';
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-/**
- * Loguje użytkownika za pomocą Firebase Auth
- */
+
 export const loginUser = async (email: string, password: string) => {
   const userCredential = await signInWithEmailAndPassword(auth, email.trim(), password);
   return userCredential.user;
 };
 
-/**
- * Rejestruje nowego użytkownika, sprawdza unikalność loginu i tworzy profil w Firestore
- */
+
 export const registerNewUser = async (email: string, password: string, username: string) => {
   const cleanUsername = username.trim();
   const cleanEmail = email.trim();
 
-  // 1. Sprawdzenie unikalności loginu
   const usersRef = collection(db, 'users');
   const q = query(usersRef, where('username', '==', cleanUsername));
   const querySnapshot = await getDocs(q);
@@ -47,26 +41,22 @@ export const registerNewUser = async (email: string, password: string, username:
     throw new Error('USERNAME_TAKEN');
   }
 
-  // 2. Tworzenie konta w Firebase Auth
   const userCredential = await createUserWithEmailAndPassword(auth, cleanEmail, password);
   const user = userCredential.user;
 
-  // 3. Zapis dokumentu w bazie Firestore z pustym polem deviceId
   await setDoc(doc(db, 'users', user.uid), {
     username: cleanUsername,
     email: cleanEmail,
     created_at: new Date().toISOString(),
     role: 'user',
     image: "",
-    deviceId: "", // Pole inicjalizowane jako puste
+    deviceId: "",
   });
 
   return user;
 };
 
-/**
- * Aktualizuje pole deviceId dla aktualnie zalogowanego użytkownika
- */
+
 export const updateUserDeviceId = async (deviceId: string): Promise<void> => {
   const user = auth.currentUser;
   if (!user) throw new Error('USER_NOT_LOGGED_IN');
@@ -83,16 +73,11 @@ export const updateUserDeviceId = async (deviceId: string): Promise<void> => {
   }
 };
 
-/**
- * Aktualizuje profil użytkownika (opcjonalnie hasło i/lub plik zdjęcia z galerii urządzenia)
- * @param newPassword Nowe hasło (jeśli ma zostać zmienione)
- * @param imageFile Obiekt pliku przekazany z ImagePickera (zawiera uri, type, name itd.)
- */
+
 export const updateUserProfile = async (newPassword?: string, imageFile?: any): Promise<void> => {
   const user = auth.currentUser;
   if (!user) throw new Error('USER_NOT_LOGGED_IN');
 
-  // 1. Aktualizacja hasła w Firebase Auth (jeśli podano nowe hasło)
   if (newPassword && newPassword.trim() !== '') {
     if (newPassword.length < 6) {
       throw new Error('PASSWORD_TOO_SHORT');
@@ -100,7 +85,6 @@ export const updateUserProfile = async (newPassword?: string, imageFile?: any): 
     await updatePassword(user, newPassword);
   }
 
-  // 2. Obsługa przesyłania zdjęcia do Supabase Storage (bucket: user_photos)
   if (imageFile && imageFile.uri) {
     try {
       const fileExt = imageFile.name ? imageFile.name.split('.').pop() : 'jpg';
@@ -109,7 +93,6 @@ export const updateUserProfile = async (newPassword?: string, imageFile?: any): 
 
       let fileBody;
 
-      // Identyczna logika podziału na Web (blob) oraz telefon / emulator (FormData)
       if (imageFile.uri.startsWith('blob:') || imageFile.uri.startsWith('http')) {
         const response = await fetch(imageFile.uri);
         fileBody = await response.arrayBuffer();
@@ -123,9 +106,8 @@ export const updateUserProfile = async (newPassword?: string, imageFile?: any): 
         fileBody = formData;
       }
 
-      // WYSYŁKA DO BUCKETU user_photos
       const { error: uploadError } = await supabase.storage
-        .from('user_photos') // Twój docelowy bucket dla zdjęć użytkowników
+        .from('user_photos')
         .upload(filePath, fileBody, {
           contentType: imageFile.type || 'image/jpeg',
           upsert: true
@@ -135,14 +117,12 @@ export const updateUserProfile = async (newPassword?: string, imageFile?: any): 
         throw new Error(`Błąd uploadu Supabase Storage: ${uploadError.message}`);
       }
 
-      // Pobieranie wygenerowanego, publicznego adresu URL z Supabase
       const { data } = supabase.storage
         .from('user_photos')
         .getPublicUrl(filePath);
 
       const publicUrl = data.publicUrl;
 
-      // Aktualizacja pola "image" w dokumencie użytkownika w Firestore
       const userDocRef = doc(db, 'users', user.uid);
       await updateDoc(userDocRef, {
         image: publicUrl
@@ -156,34 +136,28 @@ export const updateUserProfile = async (newPassword?: string, imageFile?: any): 
   }
 };
 
-/**
- * Usuwa konto użytkownika z Firebase Auth oraz jego profil z Firestore
- */
+
 export const deleteUserAccount = async (): Promise<void> => {
   const user = auth.currentUser;
   if (!user) throw new Error('USER_NOT_LOGGED_IN');
 
   const userUid = user.uid;
 
-  // 1. Najpierw usuwamy profil z bazy danych Firestore
   const userDocRef = doc(db, 'users', userUid);
   await deleteDoc(userDocRef);
 
-  // 2. Następnie usuwamy konto z Firebase Authentication
   await deleteUser(user);
   console.log(`Successfully deleted user account: ${userUid}`);
 };
 
 export type AppThemeMode = 'light' | 'dark' | 'system';
 
-// Funkcja zapisująca wybór motywu do profilu użytkownika w bazie
 export const saveUserThemePreference = async (theme: AppThemeMode) => {
   const userId = auth.currentUser?.uid;
   if (!userId) return;
 
   try {
     const userRef = doc(db, 'users', userId);
-    // Zapisujemy/aktualizujemy pole themePreference w dokumencie użytkownika
     await setDoc(userRef, { themePreference: theme }, { merge: true });
     console.log('Theme preference saved to DB:', theme);
   } catch (error) {
@@ -191,11 +165,9 @@ export const saveUserThemePreference = async (theme: AppThemeMode) => {
   }
 };
 
-// Funkcja pobierająca motyw z bazy danych przy uruchomieniu aplikacji
 export const getUserThemePreference = async (): Promise<AppThemeMode> => {
   const userId = auth.currentUser?.uid;
-  if (!userId) return 'system'; // Domyślnie systemowy, jeśli niezalogowany
-
+  if (!userId) return 'system';
   try {
     const userRef = doc(db, 'users', userId);
     const userSnap = await getDoc(userRef);
@@ -206,10 +178,9 @@ export const getUserThemePreference = async (): Promise<AppThemeMode> => {
   } catch (error) {
     console.error('Error fetching theme preference:', error);
   }
-  return 'system'; // Zwróć domyślny, jeśli brak wpisu w bazie
+  return 'system';
 };
 
-// Definicja typu zwracanego przez funkcję
 export interface AssignedUser {
   uid: string;
   username: string;
@@ -220,10 +191,7 @@ export interface AssignedUser {
   deviceId: string;
 }
 
-/**
- * Pobiera listę użytkowników przypisanych do konkretnego ID karmnika (deviceId)
- * @param deviceId Unikalny identyfikator karmnika
- */
+
 export const getUsersByDevice = async (deviceId: string): Promise<AssignedUser[]> => {
   const cleanDeviceId = deviceId.trim();
 
@@ -233,7 +201,6 @@ export const getUsersByDevice = async (deviceId: string): Promise<AssignedUser[]
 
   try {
     const usersRef = collection(db, 'users');
-    // Tworzymy zapytanie filtrujące po polu deviceId
     const q = query(usersRef, where('deviceId', '==', cleanDeviceId));
     const querySnapshot = await getDocs(q);
 
@@ -242,7 +209,7 @@ export const getUsersByDevice = async (deviceId: string): Promise<AssignedUser[]
     querySnapshot.forEach((docSnap) => {
       const data = docSnap.data();
       assignedUsers.push({
-        uid: docSnap.id, // Identyfikator dokumentu (uid z Firebase Auth)
+        uid: docSnap.id,
         username: data.username || '',
         email: data.email || '',
         image: data.image || '',
