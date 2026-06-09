@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Modal, Platform, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Modal, Platform, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { auth } from '../firebaseConfig';
 import { ThemedText } from './themed-text';
 
@@ -17,6 +17,13 @@ interface EditMealModalProps {
   meal: Meal | null;
 }
 
+// Mapowanie wielkości porcji (gramy ukryte przed użytkownikiem)
+const PORTION_OPTIONS = [
+  { id: 'SMALL', label: 'Mała', grams: 25 },
+  { id: 'MEDIUM', label: 'Średnia', grams: 65 },
+  { id: 'LARGE', label: 'Duża', grams: 100 },
+];
+
 export function EditMealModal({ isVisible, onClose, meal }: EditMealModalProps) {
   const { currentTheme } = useAppTheme();
   const currentColors = Colors[currentTheme];
@@ -30,7 +37,9 @@ export function EditMealModal({ isVisible, onClose, meal }: EditMealModalProps) 
 
   const [date, setDate] = useState(new Date());
   const [showPicker, setShowPicker] = useState<'date' | 'time' | null>(null);
-  const [portion, setPortion] = useState('50');
+
+  // Stan przechowujący wybrane ID rozmiaru porcji
+  const [selectedPortionId, setSelectedPortionId] = useState('MEDIUM');
 
   const currentUserId = auth.currentUser?.uid || null;
 
@@ -54,7 +63,11 @@ export function EditMealModal({ isVisible, onClose, meal }: EditMealModalProps) 
   useEffect(() => {
     if (isVisible && meal) {
       setSelectedPet(meal.petId);
-      setPortion(meal.portionGrams.toString());
+
+      // Mapowanie gramatury z bazy danych na odpowiedni kafelek
+      const mealGrams = meal.portionGrams;
+      const matchedOption = PORTION_OPTIONS.find(option => option.grams === mealGrams);
+      setSelectedPortionId(matchedOption ? matchedOption.id : 'MEDIUM');
 
       const mealDate = meal.timestamp && typeof meal.timestamp.toDate === 'function'
         ? meal.timestamp.toDate()
@@ -81,10 +94,14 @@ export function EditMealModal({ isVisible, onClose, meal }: EditMealModalProps) 
 
     setIsSaving(true);
     try {
+      // Znajdujemy przypisaną gramaturę dla wybranego kafelka
+      const selectedPortion = PORTION_OPTIONS.find(p => p.id === selectedPortionId);
+      const portionGrams = selectedPortion ? selectedPortion.grams : 65;
+
       const updatedMealData: Partial<Meal> = {
         petId: selectedPet,
         timestamp: Timestamp.fromDate(date),
-        portionGrams: parseFloat(portion) || 0,
+        portionGrams: portionGrams, // Zapisujemy 25, 65 lub 100 do bazy
       };
 
       await updateMeal(meal.id, updatedMealData);
@@ -223,18 +240,32 @@ export function EditMealModal({ isVisible, onClose, meal }: EditMealModalProps) 
             </View>
 
             <ThemedText style={[styles.label, { color: currentColors.text }]}>Porcja</ThemedText>
-            <View style={styles.orangeInput}>
-              <View style={styles.row}>
-                <TextInput
-                  style={styles.textInput}
-                  value={portion}
-                  onChangeText={setPortion}
-                  keyboardType="numeric"
-                  placeholderTextColor="#ddd"
-                  editable={!isSaving && !isDeleting}
-                />
-                <ThemedText style={styles.whiteText}>g</ThemedText>
-              </View>
+
+            {/* SELEKTOR PORCJI (Tylko nazwy wielkości) */}
+            <View style={styles.portionSegmentedContainer}>
+              {PORTION_OPTIONS.map((option) => {
+                const isSelected = selectedPortionId === option.id;
+                return (
+                  <TouchableOpacity
+                    key={option.id}
+                    style={[
+                      styles.portionSegmentButton,
+                      isSelected && styles.portionSegmentButtonActive,
+                    ]}
+                    onPress={() => setSelectedPortionId(option.id)}
+                    disabled={isSaving || isDeleting}
+                  >
+                    <ThemedText
+                      style={[
+                        styles.portionSegmentLabel,
+                        isSelected && styles.portionSegmentLabelActive,
+                      ]}
+                    >
+                      {option.label}
+                    </ThemedText>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           </ScrollView>
 
@@ -313,16 +344,9 @@ const styles = StyleSheet.create({
   },
   modalTitle: { fontSize: 32, textAlign: 'center', marginBottom: 20 },
   label: { fontSize: 22, marginTop: 15, marginBottom: 8, fontWeight: '500' },
-  radioRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
+  radioRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8, paddingVertical: 2 },
   radioLabel: { fontSize: 18, marginLeft: 10 },
   dateTimeContainer: { flexDirection: 'row', gap: 10, width: '100%' },
-  orangeInput: {
-    backgroundColor: '#F4A261',
-    borderRadius: 20,
-    padding: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   orangeInputSmall: {
     backgroundColor: '#F4A261',
     borderRadius: 20,
@@ -330,9 +354,37 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
   },
-  row: { flexDirection: 'row', alignItems: 'center' },
   whiteText: { color: 'white', fontSize: 18, fontWeight: '500' },
-  textInput: { color: 'white', fontSize: 18, fontWeight: '500', textAlign: 'center', minWidth: 40 },
+
+  // NOWE STYLE DLA KAFFELKÓW WYBORU PORCJI
+  portionSegmentedContainer: {
+    flexDirection: 'row',
+    gap: 10,
+    width: '100%',
+    justifyContent: 'space-between',
+  },
+  portionSegmentButton: {
+    flex: 1,
+    backgroundColor: '#E0E0E0',
+    borderRadius: 20,
+    paddingVertical: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  portionSegmentButtonActive: {
+    backgroundColor: '#F4A261',
+    borderColor: '#E76F51',
+  },
+  portionSegmentLabel: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#666',
+  },
+  portionSegmentLabelActive: {
+    color: 'white',
+  },
 
   actionsContainer: {
     flexDirection: 'row',

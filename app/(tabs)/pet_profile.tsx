@@ -30,11 +30,19 @@ export default function PetProfileScreen() {
   const [pet, setPet] = useState<Pet | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
 
+  // W pełni przetłumaczony słownik dla profilu zwierzaka (naprawione red i green)
   const collarNames: Record<string, string> = {
     blue: 'Niebieska obroża',
     orange: 'Pomarańczowa obroża',
-    green: 'Green collar',
-    red: 'Red collar',
+    green: 'Zielona obroża',
+    red: 'Czerwona obroża',
+  };
+
+  // Funkcja pomocnicza czyszcząca tekst z bazy (np. "red collar" -> "red")
+  const getPolishCollarLabel = (collarValue: string | undefined | null): string => {
+    if (!collarValue) return 'Brak przypisanej obroży';
+    const cleanKey = collarValue.toLowerCase().replace('collar', '').trim();
+    return collarNames[cleanKey] || `${collarValue} obroża`;
   };
 
   useEffect(() => {
@@ -133,7 +141,8 @@ export default function PetProfileScreen() {
         <View style={styles.petInfo}>
           <Text style={[styles.petName, { color: currentColors.text }]}>{pet.name}</Text>
           <Text style={[styles.petDescription, { color: theme === 'dark' ? '#A0A0A0' : '#777' }]}>
-            {collarNames[pet.collar] || 'Brak przypisanej obroży'}
+            {/* Wyświetlanie bezpiecznie przemapowanej nazwy po polsku */}
+            {getPolishCollarLabel(pet.collar)}
           </Text>
         </View>
 
@@ -245,7 +254,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
   },
-  // Zunifikowane wymiary przycisków bocznych (40x40) dla zachowania idealnego wycentrowania logo
   iconWrapper: {
     width: 40,
     height: 40,

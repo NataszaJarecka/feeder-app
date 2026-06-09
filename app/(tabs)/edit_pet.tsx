@@ -13,11 +13,6 @@ import { deletePetWithMeals, getPetById, updatePet } from '../../services/petSer
 
 const { width } = Dimensions.get('window');
 
-const collarOptions = [
-  { id: 'blue', label: 'Niebieska obroża', color: '#5FB4FF' },
-  { id: 'orange', label: 'Pomarańczowa obroża', color: '#E99664' },
-];
-
 const EditPetScreen = () => {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -33,7 +28,6 @@ const EditPetScreen = () => {
   const [name, setName] = useState('');
   const [currentPhotoUrl, setCurrentPhotoUrl] = useState('');
   const [newSelectedPhoto, setNewSelectedPhoto] = useState<any>(null);
-  const [selectedCollar, setSelectedCollar] = useState(collarOptions[0].id);
 
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -58,7 +52,6 @@ const EditPetScreen = () => {
         if (petData) {
           setName(petData.name || '');
           setCurrentPhotoUrl(petData.image || '');
-          setSelectedCollar(petData.collar || collarOptions[0].id);
         } else {
           console.log("Serwis zwrócił null dla ID:", petId);
           setError('Pet not found in database');
@@ -111,7 +104,6 @@ const EditPetScreen = () => {
     try {
       const updatedFields = {
         name: name.trim(),
-        collar: selectedCollar,
         userId: auth.currentUser?.uid || null,
       };
 
@@ -144,7 +136,7 @@ const EditPetScreen = () => {
             } catch (err) {
               console.error(err);
               Alert.alert("Error", "Błąd podczas usuwania zwierzaka. Spróbuj jeszcze raz.");
-              setIsSaving(false);
+              isSaving(false);
             }
           }
         }
@@ -229,7 +221,8 @@ const EditPetScreen = () => {
           </View>
 
           <View style={styles.inputGroup}>
-            <ThemedText style={styles.inputLabel}>Imię</ThemedText>
+            {/* Poprawiony tekst nagłówka z dynamicznym kolorem dla Dark Mode */}
+            <Text style={[styles.inputLabel, { color: currentColors.text }]}>Imię</Text>
             <TextInput
               value={name}
               onChangeText={setName}
@@ -238,31 +231,6 @@ const EditPetScreen = () => {
               style={[styles.input, { backgroundColor: theme === 'dark' ? '#26292B' : '#F8F8F8', color: currentColors.text }]}
               editable={!isSaving}
             />
-          </View>
-
-          <View style={styles.section}>
-            <ThemedText style={styles.sectionTitle}>Wybierz obrożę</ThemedText>
-            {collarOptions.map((collar) => {
-              const active = selectedCollar === collar.id;
-              return (
-                <TouchableOpacity
-                  key={collar.id}
-                  style={[
-                    styles.radioRow,
-                    { borderColor: theme === 'dark' ? '#444' : '#DDD' },
-                    active && (theme === 'dark' ? { borderColor: '#E99664', backgroundColor: '#2D231E' } : styles.radioRowActive)
-                  ]}
-                  onPress={() => setSelectedCollar(collar.id)}
-                  activeOpacity={0.8}
-                  disabled={isSaving}
-                >
-                  <View style={[styles.radioCircle, { borderColor: active ? collar.color : (theme === 'dark' ? '#666' : '#CCC') }]}>
-                    {active && <View style={[styles.radioDot, { backgroundColor: collar.color }]} />}
-                  </View>
-                  <Text style={[styles.radioLabel, { color: currentColors.text }, active && { color: collar.color }]}>{collar.label}</Text>
-                </TouchableOpacity>
-              );
-            })}
           </View>
 
           <TouchableOpacity
@@ -382,44 +350,6 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     paddingHorizontal: 16,
     paddingVertical: 14,
-    fontSize: 16,
-  },
-  section: {
-    marginBottom: 25,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    marginBottom: 14,
-    fontWeight: '600',
-  },
-  radioRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderRadius: 18,
-    borderWidth: 1,
-    marginBottom: 12,
-  },
-  radioRowActive: {
-    borderColor: '#E99664',
-    backgroundColor: '#FFF3EA',
-  },
-  radioCircle: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    borderWidth: 2,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 14,
-  },
-  radioDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-  },
-  radioLabel: {
     fontSize: 16,
   },
   errorText: {

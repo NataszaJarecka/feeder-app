@@ -2,7 +2,7 @@ import { collection, doc, getDoc, getDocs, limit, orderBy, query, updateDoc, whe
 import { Platform } from 'react-native';
 import { auth, db } from '../firebaseConfig';
 
-import * as Device from 'expo-device';
+import Constants from 'expo-constants'; // Dodany import dla EAS projectId
 import * as Notifications from 'expo-notifications';
 
 export interface DBNotification {
@@ -24,7 +24,6 @@ export interface DisplayNotification {
   petId?: string;
   avatarUrl?: string;
 }
-
 
 export const fetchUserNotifications = async (): Promise<DisplayNotification[]> => {
   const user = auth.currentUser;
@@ -60,7 +59,6 @@ export const fetchUserNotifications = async (): Promise<DisplayNotification[]> =
     });
 
     const displayNotifications: DisplayNotification[] = [];
-
     const petCache: Record<string, { name: string; image: string }> = {};
 
     for (const notif of rawNotifications) {
@@ -89,7 +87,6 @@ export const fetchUserNotifications = async (): Promise<DisplayNotification[]> =
       }
 
       const dateObj = new Date(notif.createdAt * 1000);
-
       const timeStr = dateObj.toLocaleTimeString('pl', { hour: '2-digit', minute: '2-digit', hour12: false });
       const dateStr = dateObj.toLocaleDateString('pl', { day: 'numeric', month: 'short' });
       const fullTime = `${dateStr}, ${timeStr}`;
@@ -132,7 +129,6 @@ export const fetchUserNotifications = async (): Promise<DisplayNotification[]> =
   }
 };
 
-
 export const clearAllUserNotifications = async (notificationIds: string[]): Promise<void> => {
   if (notificationIds.length === 0) return;
 
@@ -152,6 +148,33 @@ export const clearAllUserNotifications = async (notificationIds: string[]): Prom
   }
 };
 
+export const clearAbsolutelyAllNotifications = async (): Promise<void> => {
+  try {
+    const notificationsRef = collection(db, 'notifications');
+    const q = query(notificationsRef, where('cleared', '==', false));
+    const querySnapshot = await getDocs(q);
+
+    if (querySnapshot.empty) {
+      console.log('🧹 Brak powiadomień do wyczyszczenia. Wszystkie mają już cleared: true.');
+      return;
+    }
+
+    const batch = writeBatch(db);
+    let counter = 0;
+
+    querySnapshot.forEach((docSnap) => {
+      const docRef = doc(db, 'notifications', docSnap.id);
+      batch.update(docRef, { cleared: true });
+      counter++;
+    });
+
+    await batch.commit();
+    console.log(`🧹 Sukces! Oznaczono globalnie WSZYSTKIE rekordy (${counter}) jako cleared: true.`);
+  } catch (error) {
+    console.error('❌ Błąd podczas globalnego czyszczenia kolekcji notifications:', error);
+    throw error;
+  }
+};
 
 export const registerForPushNotificationsAsync = async (): Promise<void> => {
   const user = auth.currentUser;
@@ -165,10 +188,11 @@ export const registerForPushNotificationsAsync = async (): Promise<void> => {
     return;
   }
 
-  if (!Device.isDevice) {
-    console.log(' [Push] Funkcja odpalona na emulatorze. Tokeny push zapisują się TYLKO na fizycznych urządzeniach.');
-    return;
-  }
+  // TYMCZASOWO WYŁĄCZAMY TEN WARUNEK, ŻEBY EXPO GO NIE BLOKOWAŁO TWOJEGO TELEFONU
+  // if (!Device.isDevice) {
+  //   console.log(' [Push] Funkcja odpalona na emulatorze. Tokeny push zapisują się TYLKO na fizycznych urządzeniach.');
+  //   return;
+  // }
 
   try {
     const { status: existingStatus } = await Notifications.getPermissionsAsync();
@@ -181,22 +205,46 @@ export const registerForPushNotificationsAsync = async (): Promise<void> => {
 
     if (finalStatus !== 'granted') {
       console.log(' [Push] Użytkownik nie wyraził zgody na powiadomienia.');
+      alert('⚠️ Musisz zezwolić w telefonie na powiadomienia, aby test działał!');
       return;
     }
 
-    const tokenData = await Notifications.getExpoPushTokenAsync();
+    const projectId =
+      Constants.expoConfig?.extra?.eas?.projectId ??
+      Constants.easConfig?.projectId;
+
+    if (!projectId) {
+      console.error("[Push] Brak projectId w konfiguracji Expo (app.json)!");
+      alert('❌ Brak projectId w pliku app.json!');
+      return;
+    }
+
+    const tokenData = await Notifications.getExpoPushTokenAsync({
+      projectId: projectId,
+    });
     const token = tokenData.data;
 
     console.log(" [Push] Wygenerowano token urządzenia:", token);
+
+    if (Platform.OS === 'android') {
+      await Notifications.setNotificationChannelAsync('default', {
+        name: 'default',
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: '#FF231F7A',
+      });
+    }
 
     const userRef = doc(db, 'users', user.uid);
     await updateDoc(userRef, {
       pushToken: token
     });
 
-    console.log(' [Push] Token został zapisany w Firestore dla UID:', user.uid);
+    // console.log(' [Push] Token został zapisany w Firestore dla UID:', user.uid);
+    // alert('🟢 Sukces! Token push zaktualizowany na telefonie!');
 
-  } catch (error) {
-    console.error('[Push] Coś poszło nie tak przy generowaniu lub zapisie tokenu:', error);
+  } catch (error: any) {
+    // console.error('[Push] Coś poszło nie tak przy generowaniu lub zapisie tokenu:', error);
+    // alert('❌ Błąd push: ' + error.message);
   }
 };

@@ -1,4 +1,4 @@
-import { collection, getDocs, query, Timestamp, where } from 'firebase/firestore';
+import { collection, getCountFromServer, getDocs, query, Timestamp, where } from 'firebase/firestore';
 import { db } from '../firebaseConfig';
 
 export interface PetStatistic {
@@ -10,7 +10,7 @@ export interface PetStatistic {
   mealsMissed: number;
 }
 
-
+// Istniejąca funkcja pobierania statystyk po dacie
 export const getStatisticsByDate = async (date: Date): Promise<PetStatistic[]> => {
   try {
     const statsCollection = collection(db, 'statistics');
@@ -48,3 +48,25 @@ export const getStatisticsByDate = async (date: Date): Promise<PetStatistic[]> =
   }
 };
 
+/**
+ * Funkcja zliczająca ile razy dany pies był karmiony.
+ * @param petId Identyfikator psa, którego karmienia chcemy policzyć.
+ * @returns Liczba karmień (number).
+ */
+export const getFeedingCountForPet = async (petId: string): Promise<number> => {
+  try {
+    // Zakładam, że kolekcja nazywa się 'feedings', a pole przechowujące ID psa to 'petId'.
+    // Jeśli w bazie masz np. 'feeding' lub pole nazywa się 'dogId', dostosuj poniższe nazwy.
+    const feedingsCollection = collection(db, 'feedings');
+
+    const q = query(feedingsCollection, where('petId', '==', petId));
+
+    // getCountFromServer pobiera tylko liczbę dokumentów (jest szybsze i tańsze)
+    const snapshot = await getCountFromServer(q);
+
+    return snapshot.data().count;
+  } catch (error) {
+    console.error(`Błąd podczas zliczania karmień dla psa o ID ${petId}:`, error);
+    throw error;
+  }
+};

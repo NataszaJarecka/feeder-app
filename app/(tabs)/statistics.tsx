@@ -1,5 +1,5 @@
 import { getPetsByUser } from '@/services/petService';
-import { getStatisticsByDate, PetStatistic } from '@/services/statisticService';
+import { getFeedingCountForPet } from '@/services/statisticService';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
@@ -21,11 +21,10 @@ const StatisticsScreen = () => {
   const currentColors = Colors[currentTheme];
   const theme = currentTheme;
 
-  const [currentDate, setCurrentDate] = useState<Date>(new Date());
   const [pets, setPets] = useState<any[]>([]);
-  const [stats, setStats] = useState<PetStatistic[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [expandedPets, setExpandedPets] = useState<Record<string, boolean>>({});
+  const [feedingCounts, setFeedingCounts] = useState<Record<string, number>>({});
 
   useEffect(() => {
     const fetchUserPets = async () => {
@@ -43,45 +42,31 @@ const StatisticsScreen = () => {
 
         if (userPets.length > 0) {
           setExpandedPets({ [userPets[0].id]: true });
+
+          // Pobieranie ogólnej liczby karmień dla każdego zwierzaka
+          const counts: Record<string, number> = {};
+          await Promise.all(
+            userPets.map(async (pet) => {
+              try {
+                const count = await getFeedingCountForPet(pet.id);
+                counts[pet.id] = count;
+              } catch (err) {
+                console.error(`Błąd liczby karmień dla ${pet.id}:`, err);
+                counts[pet.id] = 0;
+              }
+            })
+          );
+          setFeedingCounts(counts);
         }
       } catch (error) {
         console.error("Błąd podczas ładowania zwierzaków w komponencie:", error);
-      }
-    };
-
-    fetchUserPets();
-  }, []);
-
-  useEffect(() => {
-    const fetchStats = async () => {
-      setLoading(true);
-      try {
-        const data = await getStatisticsByDate(currentDate);
-        setStats(data);
-      } catch (error) {
-        console.error("Błąd podczas ładowania statystyk w komponencie:", error);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchStats();
-  }, [currentDate, pets]);
-
-  const changeDate = (days: number) => {
-    const newDate = new Date(currentDate);
-    newDate.setDate(newDate.getDate() + days);
-    setCurrentDate(newDate);
-  };
-
-  const formatHeaderDate = (): string => {
-    return currentDate.toLocaleDateString('pl', {
-      weekday: 'long',
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-    });
-  };
+    fetchUserPets();
+  }, []);
 
   const toggleExpand = (petId: string) => {
     setExpandedPets((prev) => ({ ...prev, [petId]: !prev[petId] }));
@@ -120,24 +105,14 @@ const StatisticsScreen = () => {
 
         <Text style={[styles.mainTitle, { color: currentColors.text }]}>Statystyki</Text>
 
-        <View style={styles.dateSelector}>
-          <TouchableOpacity onPress={() => changeDate(-1)}>
-            <Ionicons name="chevron-back" size={30} color={currentColors.text} />
-          </TouchableOpacity>
-          <Text style={[styles.dateText, { color: currentColors.text }]}>{formatHeaderDate()}</Text>
-          <TouchableOpacity onPress={() => changeDate(1)}>
-            <Ionicons name="chevron-forward" size={30} color={currentColors.text} />
-          </TouchableOpacity>
-        </View>
-
         {loading ? (
           <ActivityIndicator size="large" color="#E99664" style={{ marginTop: 20 }} />
         ) : pets.length === 0 ? (
-          <Text style={styles.noStatsText}>Nie masz jeszcze żadnych zwierzaków.</Text>
+          <Text style={styles.noPetsText}>Nie masz jeszcze żadnych zwierzaków.</Text>
         ) : (
           pets.map((pet) => {
-            const petStat = stats.find((s) => s.petId === pet.id);
             const isExpanded = !!expandedPets[pet.id];
+            const totalFeedings = feedingCounts[pet.id] ?? 0;
 
             return (
               <View
@@ -156,20 +131,12 @@ const StatisticsScreen = () => {
 
                 {isExpanded && (
                   <View style={styles.cardBody}>
-                    {petStat ? (
-                      <>
-                        <Text style={[styles.statLabel, { color: currentColors.text }]}>Zjedzone posiłki:</Text>
-                        <Text style={styles.statValue}>{petStat.mealsEaten}</Text>
-
-                        <Text style={[styles.statLabel, { color: currentColors.text }]}>Niezjedzone posiłki:</Text>
-                        <Text style={styles.statValue}>{petStat.mealsMissed}</Text>
-
-                        <Text style={[styles.statLabel, { color: currentColors.text }]}>Średnia prędkość jedzenia:</Text>
-                        <Text style={styles.statValue}>{petStat.eatingSpeed} g/s</Text>
-                      </>
-                    ) : (
-                      <Text style={styles.noStatsText}>Brak statystyk</Text>
-                    )}
+                    <Text style={[styles.statLabel, { color: currentColors.text, fontWeight: '400' }]}>
+                      Liczba posiłków zjedzona do tej pory:
+                    </Text>
+                    <Text style={[styles.statValue, { color: '#E99664', fontWeight: 'bold' }]}>
+                      {totalFeedings}
+                    </Text>
                   </View>
                 )}
               </View>
@@ -192,15 +159,13 @@ const styles = StyleSheet.create({
   logo: { fontSize: 32, fontWeight: 'bold', fontStyle: 'italic' },
   scrollContent: { alignItems: 'center', paddingBottom: 100 },
   mainTitle: { fontSize: 42, fontWeight: '400', marginTop: 30, marginBottom: 40, textAlign: 'center' },
-  dateSelector: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: width * 0.85, marginVertical: 25 },
-  dateText: { fontSize: 26, fontWeight: '400', textAlign: 'center', flex: 1 },
   cardWrapper: { width: width * 0.85, borderRadius: 35, marginBottom: 25, shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.1, shadowRadius: 15, elevation: 8 },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#E99664', paddingHorizontal: 25, paddingVertical: 12, borderRadius: 35 },
   petName: { fontSize: 38, color: 'white', fontWeight: '300' },
-  cardBody: { paddingVertical: 20, alignItems: 'center' },
-  statLabel: { fontSize: 22, marginTop: 15 },
-  statValue: { fontSize: 26, fontWeight: '300', color: '#777', marginTop: 5 },
-  noStatsText: { fontSize: 22, fontWeight: '300', color: '#A0A0A0', marginVertical: 30, fontStyle: 'italic' },
+  cardBody: { paddingVertical: 25, paddingHorizontal: 20, alignItems: 'center' },
+  statLabel: { fontSize: 20, textAlign: 'center', marginBottom: 10 },
+  statValue: { fontSize: 32, marginTop: 5 },
+  noPetsText: { fontSize: 22, fontWeight: '300', color: '#A0A0A0', marginVertical: 30, fontStyle: 'italic' },
   headerSide: {
     width: 40,
     height: 40,

@@ -16,22 +16,20 @@ import { getPetsCountByUser } from '../../services/petService';
 
 const { width } = Dimensions.get('window');
 
-// Funkcja obsługująca polską odmianę liczby mnogiej
+// Bezpieczna funkcja obsługująca polską odmianę liczby mnogiej (bez Intl.PluralRules)
 const getPolishPetLabel = (count: number) => {
   if (count === 0) return 'brak zwierzaków';
+  if (count === 1) return 'zwierzak';
 
-  const rules = new Intl.PluralRules('pl-PL');
-  const rule = rules.select(count);
+  const lastDigit = count % 10;
+  const lastTwoDigits = count % 100;
 
-  switch (rule) {
-    case 'one':
-      return 'zwierzak';   // 1
-    case 'few':
-      return 'zwierzaki';  // 2, 3, 4, 22, 23, 24...
-    case 'many':
-    default:
-      return 'zwierzaków'; // 5-21, 25-30...
+  // Reguła dla języka polskiego: końcówki 2, 3, 4 (ale nie 12, 13, 14) -> "zwierzaki"
+  if (lastDigit >= 2 && lastDigit <= 4 && (lastTwoDigits < 10 || lastTwoDigits >= 20)) {
+    return 'zwierzaki';  // np. 2, 3, 4, 22, 23, 24...
   }
+
+  return 'zwierzaków'; // np. 5-21, 25-30, 1025...
 };
 
 const AccountScreen = () => {

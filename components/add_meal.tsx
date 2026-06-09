@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Modal, Platform, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Modal, Platform, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { ThemedText } from './themed-text';
 
 // IMPORT SERWISÓW I TYPÓW
@@ -17,6 +17,13 @@ interface AddMealModalProps {
   onClose: () => void;
 }
 
+// Struktura wielkości porcji (gramy ukryte przed użytkownikiem)
+const PORTION_OPTIONS = [
+  { id: 'SMALL', label: 'Mała', grams: 25 },
+  { id: 'MEDIUM', label: 'Średnia', grams: 65 },
+  { id: 'LARGE', label: 'Duża', grams: 100 },
+];
+
 export function AddMealModal({ isVisible, onClose }: AddMealModalProps) {
   const { currentTheme } = useAppTheme();
   const currentColors = Colors[currentTheme];
@@ -29,7 +36,9 @@ export function AddMealModal({ isVisible, onClose }: AddMealModalProps) {
 
   const [date, setDate] = useState(new Date());
   const [showPicker, setShowPicker] = useState<'date' | 'time' | 'endDate' | null>(null);
-  const [portion, setPortion] = useState('50');
+
+  // Stan przechowujący wybrane ID rozmiaru (domyślnie 'MEDIUM' / Średnia)
+  const [selectedPortionId, setSelectedPortionId] = useState('MEDIUM');
 
   const [recurrence, setRecurrence] = useState<RecurrenceType>('ONCE');
   const [endDate, setEndDate] = useState(new Date());
@@ -55,8 +64,10 @@ export function AddMealModal({ isVisible, onClose }: AddMealModalProps) {
       fetchPets();
 
       setRecurrence('ONCE');
+      setSelectedPortionId('MEDIUM'); // Resetujemy do Średniej przy otwarciu
       const defaultEndDate = new Date();
       defaultEndDate.setDate(defaultEndDate.getDate() + 7);
+      setEndDate(defaultEndDate);
     }
   }, [isVisible]);
 
@@ -84,10 +95,14 @@ export function AddMealModal({ isVisible, onClose }: AddMealModalProps) {
       const finalizedEndDate = new Date(endDate);
       finalizedEndDate.setHours(23, 59, 59, 999);
 
+      // Znajdujemy gramaturę przypisaną do wybranego ID
+      const selectedPortion = PORTION_OPTIONS.find(p => p.id === selectedPortionId);
+      const portionGrams = selectedPortion ? selectedPortion.grams : 65;
+
       const newMealData: NewMeal = {
         petId: selectedPet,
         timestamp: Timestamp.fromDate(date),
-        portionGrams: parseFloat(portion) || 0,
+        portionGrams: portionGrams, // Zapisujemy odpowiednio 25, 65 lub 100 do bazy
         status: 'scheduled',
         recurrence: recurrence,
         endDate: recurrence !== 'ONCE' ? Math.floor(finalizedEndDate.getTime() / 1000) : null
@@ -204,18 +219,32 @@ export function AddMealModal({ isVisible, onClose }: AddMealModalProps) {
             </View>
 
             <ThemedText style={[styles.label, { color: currentColors.text }]}>Porcja</ThemedText>
-            <View style={styles.orangeInputFull}>
-              <View style={styles.row}>
-                <TextInput
-                  style={styles.textInput}
-                  value={portion}
-                  onChangeText={setPortion}
-                  keyboardType="numeric"
-                  placeholderTextColor="#ddd"
-                  editable={!isSaving}
-                />
-                <ThemedText style={styles.whiteText}>g</ThemedText>
-              </View>
+
+            {/* SELEKTOR PORCJI (Tylko nazwy wielkości) */}
+            <View style={styles.portionSegmentedContainer}>
+              {PORTION_OPTIONS.map((option) => {
+                const isSelected = selectedPortionId === option.id;
+                return (
+                  <TouchableOpacity
+                    key={option.id}
+                    style={[
+                      styles.portionSegmentButton,
+                      isSelected && styles.portionSegmentButtonActive,
+                    ]}
+                    onPress={() => setSelectedPortionId(option.id)}
+                    disabled={isSaving}
+                  >
+                    <ThemedText
+                      style={[
+                        styles.portionSegmentLabel,
+                        isSelected && styles.portionSegmentLabelActive,
+                      ]}
+                    >
+                      {option.label}
+                    </ThemedText>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
 
             <ThemedText style={[styles.label, { color: currentColors.text }]}>Powtarzanie</ThemedText>
@@ -347,9 +376,38 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
   },
-  row: { flexDirection: 'row', alignItems: 'center' },
   whiteText: { color: 'white', fontSize: 18, fontWeight: '500' },
-  textInput: { color: 'white', fontSize: 18, fontWeight: '500', textAlign: 'center', minWidth: 40 },
+
+  // STYLE DLA SEGMENTÓW (KAFFELKÓW)
+  portionSegmentedContainer: {
+    flexDirection: 'row',
+    gap: 10,
+    width: '100%',
+    justifyContent: 'space-between',
+  },
+  portionSegmentButton: {
+    flex: 1,
+    backgroundColor: '#E0E0E0',
+    borderRadius: 20,
+    paddingVertical: 16, // Nieco większy padding pionowy dla lepszego wyważenia bez gramatury
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  portionSegmentButtonActive: {
+    backgroundColor: '#F4A261',
+    borderColor: '#E76F51',
+  },
+  portionSegmentLabel: {
+    fontSize: 18, // Zwiększyłem odrobinę czcionkę, skoro to jedyny tekst w kafelku
+    fontWeight: 'bold',
+    color: '#666',
+  },
+  portionSegmentLabelActive: {
+    color: 'white',
+  },
+
   doneButton: {
     backgroundColor: '#F4A261',
     borderRadius: 30,

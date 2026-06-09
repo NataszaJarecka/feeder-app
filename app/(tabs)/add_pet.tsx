@@ -1,22 +1,42 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { useRouter } from 'expo-router';
-import React from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { collection, getDocs } from 'firebase/firestore';
+import React, { useCallback, useState } from 'react';
 import { ActivityIndicator, Dimensions, Image, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ThemedText } from '../../components/themed-text';
 import { ThemedView } from '../../components/themed-view';
 import { Colors } from '../../constants/Colors';
 import { useAppTheme } from '../../context/ThemeContext';
-import { auth } from '../../firebaseConfig';
+import { auth, db } from '../../firebaseConfig';
+import { getAllCollars } from '../../services/collarService';
 import { addPet } from '../../services/petService';
 
 const { width } = Dimensions.get('window');
 
-const collarOptions = [
-  { id: 'blue', label: 'Niebieska obroża', color: '#5FB4FF' },
-  { id: 'orange', label: 'Pomarańczowa obroża', color: '#E99664' },
-];
+// Słownik mapujący czyste angielskie nazwy kolorów na polskie etykiety i kolory HEX
+const colorMap: Record<string, { label: string; hex: string }> = {
+  blue: { label: 'Niebieska obroża', hex: '#5FB4FF' },
+  orange: { label: 'Pomarańczowa obroża', hex: '#E99664' },
+  red: { label: 'Czerwona obroża', hex: '#FF5F5F' },
+  green: { label: 'Zielona obroża', hex: '#5FFF7D' },
+};
+
+// Funkcja zabezpieczająca: czyści tekst z bazy (np. "red collar" -> "red") i mapuje na j. polski
+const getCollarDetails = (colorName: string) => {
+  // Zamieniamy na małe litery i usuwamy ewentualne słowo "collar", jeśli zapisano je w bazie
+  const cleanColor = colorName.toLowerCase().replace('collar', '').trim();
+
+  return colorMap[cleanColor] || { label: `${colorName} obroża`, hex: '#888888' };
+};
+
+interface AvailableCollar {
+  id: string;
+  colorName: string;
+  label: string;
+  hex: string;
+}
 
 const AddPetScreen = () => {
   const router = useRouter();
@@ -26,11 +46,60 @@ const AddPetScreen = () => {
   const currentColors = Colors[currentTheme];
   const theme = currentTheme;
 
-  const [name, setName] = React.useState('');
-  const [selectedPhoto, setSelectedPhoto] = React.useState<any>(null);
-  const [selectedCollar, setSelectedCollar] = React.useState(collarOptions[0].id);
-  const [error, setError] = React.useState('');
-  const [isLoading, setIsLoading] = React.useState(false);
+  const [name, setName] = useState('');
+  const [selectedPhoto, setSelectedPhoto] = useState<any>(null);
+  const [collarOptions, setCollarOptions] = useState<AvailableCollar[]>([]);
+  const [selectedCollar, setSelectedCollar] = useState<string>('');
+  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [isFetchingCollars, setIsFetchingCollars] = useState(true);
+
+  const fetchAvailableCollars = useCallback(async () => {
+    try {
+      setIsFetchingCollars(true);
+      const allCollars = await getAllCollars();
+      const petsSnapshot = await getDocs(collection(db, 'pets'));
+      const occupiedCollarColors = new Set<string>();
+
+      petsSnapshot.forEach((doc) => {
+        const petData = doc.data();
+        if (petData.collar) {
+          occupiedCollarColors.add(petData.collar.toLowerCase().trim());
+        }
+      });
+
+      const available = allCollars
+        .filter(collar => !occupiedCollarColors.has(collar.colour.toLowerCase().trim()))
+        .map(collar => {
+          const details = getCollarDetails(collar.colour);
+          return {
+            id: collar.colour, // Zapisujemy oryginalną wartość do bazy (np. "red" lub "red collar")
+            colorName: collar.colour,
+            label: details.label, // Tutaj trafia polska nazwa z mapowania
+            hex: details.hex,
+          };
+        });
+
+      setCollarOptions(available);
+
+      if (available.length > 0) {
+        setSelectedCollar(available[0].id);
+      } else {
+        setSelectedCollar('');
+      }
+    } catch (err) {
+      console.error("Błąd ładowania obroży:", err);
+      setError('Nie udało się załadować dostępnych obroży.');
+    } finally {
+      setIsFetchingCollars(false);
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchAvailableCollars();
+    }, [fetchAvailableCollars])
+  );
 
   const pickImage = async () => {
     const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -71,6 +140,11 @@ const AddPetScreen = () => {
       return;
     }
 
+    if (!selectedCollar) {
+      setError('Brak wolnych obroży do przypisania');
+      return;
+    }
+
     setError('');
     setIsLoading(true);
 
@@ -82,7 +156,15 @@ const AddPetScreen = () => {
       };
 
       await addPet(petData, selectedPhoto);
-      router.replace('/pets');
+
+      setName('');
+      setSelectedPhoto(null);
+      setSelectedCollar('');
+
+      router.replace({
+        pathname: '/pets',
+        params: { refresh: Date.now().toString() }
+      });
     } catch (err) {
       console.error(err);
       setError('Coś poszło nie tak podczas zapisywania. Spróbuj ponownie.');
@@ -124,7 +206,7 @@ const AddPetScreen = () => {
 
         <View style={styles.form}>
           <View style={styles.inputGroup}>
-            <ThemedText style={styles.inputLabel}>Imię</ThemedText>
+            <Text style={[styles.sectionTitle, { color: currentColors.text }]}>Imię</Text>
             <TextInput
               value={name}
               onChangeText={setName}
@@ -136,7 +218,7 @@ const AddPetScreen = () => {
           </View>
 
           <View style={styles.section}>
-            <ThemedText style={styles.sectionTitle}>Wybierz zdjęcie</ThemedText>
+            <Text style={[styles.sectionTitle, { color: currentColors.text }]}>Wybierz zdjęcie</Text>
 
             {selectedPhoto && (
               <View style={styles.imagePreviewContainer}>
@@ -161,37 +243,49 @@ const AddPetScreen = () => {
           </View>
 
           <View style={styles.section}>
-            <ThemedText style={styles.sectionTitle}>Choose collar</ThemedText>
-            {collarOptions.map((collar) => {
-              const active = selectedCollar === collar.id;
-              return (
-                <TouchableOpacity
-                  key={collar.id}
-                  style={[
-                    styles.radioRow,
-                    { borderColor: currentTheme === 'dark' ? '#444' : '#DDD' },
-                    active && (currentTheme === 'dark' ? { borderColor: '#E99664', backgroundColor: '#2D231E' } : styles.radioRowActive)
-                  ]}
-                  onPress={() => setSelectedCollar(collar.id)}
-                  activeOpacity={0.8}
-                  disabled={isLoading}
-                >
-                  <View style={[styles.radioCircle, { borderColor: active ? collar.color : (currentTheme === 'dark' ? '#666' : '#CCC') }]}>
-                    {active && <View style={[styles.radioDot, { backgroundColor: collar.color }]} />}
-                  </View>
-                  <Text style={[styles.radioLabel, { color: currentColors.text }, active && { color: collar.color }]}>{collar.label}</Text>
-                </TouchableOpacity>
-              );
-            })}
+            <Text style={[styles.sectionTitle, { color: currentColors.text }]}>Wybierz obrożę</Text>
+
+            {isFetchingCollars ? (
+              <ActivityIndicator color={currentColors.text} style={{ marginVertical: 10 }} />
+            ) : collarOptions.length === 0 ? (
+              <Text style={[styles.emptyCollarsText, { color: currentTheme === 'dark' ? '#AAA' : '#666' }]}>
+                Brak wolnych obroży do przypisania.
+              </Text>
+            ) : (
+              collarOptions.map((collar) => {
+                const active = selectedCollar === collar.id;
+                return (
+                  <TouchableOpacity
+                    key={collar.id}
+                    style={[
+                      styles.radioRow,
+                      { borderColor: currentTheme === 'dark' ? '#444' : '#DDD' },
+                      active && (currentTheme === 'dark' ? { borderColor: collar.hex, backgroundColor: '#2D231E' } : { borderColor: collar.hex, backgroundColor: `${collar.hex}15` })
+                    ]}
+                    onPress={() => setSelectedCollar(collar.id)}
+                    activeOpacity={0.8}
+                    disabled={isLoading}
+                  >
+                    <View style={[styles.radioCircle, { borderColor: active ? collar.hex : (currentTheme === 'dark' ? '#666' : '#CCC') }]}>
+                      {active && <View style={[styles.radioDot, { backgroundColor: collar.hex }]} />}
+                    </View>
+                    {/* Wyświetla w 100% poprawnie zmapowaną polską nazwę obroży */}
+                    <Text style={[styles.radioLabel, { color: currentColors.text }, active && { color: collar.hex }]}>
+                      {collar.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })
+            )}
           </View>
 
           {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
           <TouchableOpacity
-            style={[styles.saveButton, isLoading && styles.disabledButton]}
+            style={[styles.saveButton, (isLoading || collarOptions.length === 0) && styles.disabledButton]}
             onPress={handleSave}
             activeOpacity={0.8}
-            disabled={isLoading}
+            disabled={isLoading || collarOptions.length === 0}
           >
             {isLoading ? (
               <ActivityIndicator color="#FFFFFF" />
@@ -206,169 +300,35 @@ const AddPetScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    overflow: 'visible',
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingBottom: 15,
-    paddingHorizontal: 20,
-    zIndex: 999,
-  },
-  headerSide: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-  },
-  logo: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    fontStyle: 'italic',
-    flex: 1,
-    textAlign: 'center',
-  },
-  scrollContent: {
-    alignItems: 'center',
-    paddingTop: 20,
-    paddingBottom: 80,
-  },
-  title: {
-    fontSize: 42,
-    fontWeight: '400',
-    marginTop: 30,
-    marginBottom: 25,
-    textAlign: 'center',
-  },
-  form: {
-    width: '100%',
-    maxWidth: width * 0.85,
-  },
-  inputGroup: {
-    marginBottom: 20,
-  },
-  inputLabel: {
-    fontSize: 16,
-    marginBottom: 10,
-    fontWeight: '500',
-  },
-  input: {
-    width: '100%',
-    borderRadius: 18,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    fontSize: 16,
-  },
-  section: {
-    marginBottom: 25,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    marginBottom: 14,
-    fontWeight: '600',
-  },
-  imagePreviewContainer: {
-    alignItems: 'center',
-    marginBottom: 15,
-  },
-  imagePreview: {
-    width: 150,
-    height: 150,
-    borderRadius: 75,
-    borderWidth: 1,
-  },
-  galleryButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 16,
-    borderRadius: 25,
-    backgroundColor: '#E99664',
-    gap: 10,
-  },
-  galleryButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  radioRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderRadius: 18,
-    borderWidth: 1,
-    marginBottom: 12,
-  },
-  radioRowActive: {
-    borderColor: '#E99664',
-    backgroundColor: '#FFF3EA',
-  },
-  radioCircle: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    borderWidth: 2,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 14,
-  },
-  radioDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-  },
-  radioLabel: {
-    fontSize: 16,
-  },
-  errorText: {
-    color: '#D94747',
-    marginBottom: 14,
-    textAlign: 'center',
-  },
-  saveButton: {
-    backgroundColor: '#E99664',
-    paddingVertical: 16,
-    borderRadius: 25,
-    alignItems: 'center',
-  },
-  disabledButton: {
-    backgroundColor: '#F3C5A5',
-  },
-  saveButtonText: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  bgPaw: {
-    position: 'absolute',
-    width: 200,
-    height: 200,
-    opacity: 0.6,
-    zIndex: -1,
-  },
-  pawTopRight: {
-    top: 10,
-    right: 20,
-    transform: [{ rotate: '15deg' }],
-  },
-  pawMidLeft: {
-    top: 250,
-    left: 20,
-    transform: [{ rotate: '-10deg' }],
-  },
-  pawMidRight: {
-    top: 500,
-    right: 30,
-    transform: [{ rotate: '5deg' }],
-  },
-  pawBottomLeft: {
-    top: 750,
-    left: 20,
-    transform: [{ rotate: '-20deg' }],
-  },
+  container: { flex: 1, overflow: 'visible' },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 15, paddingHorizontal: 20, zIndex: 999 },
+  headerSide: { width: 40, height: 40, justifyContent: 'center' },
+  logo: { fontSize: 32, fontWeight: 'bold', fontStyle: 'italic', flex: 1, textAlign: 'center' },
+  scrollContent: { alignItems: 'center', paddingTop: 20, paddingBottom: 80 },
+  title: { fontSize: 42, fontWeight: '400', marginTop: 30, marginBottom: 25, textAlign: 'center' },
+  form: { width: '100%', maxWidth: width * 0.85 },
+  inputGroup: { marginBottom: 20 },
+  input: { width: '100%', borderRadius: 18, paddingHorizontal: 16, paddingVertical: 14, fontSize: 16 },
+  section: { marginBottom: 25 },
+  sectionTitle: { fontSize: 18, marginBottom: 14, fontWeight: '600' },
+  imagePreviewContainer: { alignItems: 'center', marginBottom: 15 },
+  imagePreview: { width: 150, height: 150, borderRadius: 75, borderWidth: 1 },
+  galleryButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 16, borderRadius: 25, backgroundColor: '#E99664', gap: 10 },
+  galleryButtonText: { color: '#FFFFFF', fontSize: 16, fontWeight: '600' },
+  radioRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 16, borderRadius: 18, borderWidth: 1, marginBottom: 12 },
+  radioCircle: { width: 24, height: 24, borderRadius: 12, borderWidth: 2, justifyContent: 'center', alignItems: 'center', marginRight: 14 },
+  radioDot: { width: 12, height: 12, borderRadius: 6 },
+  radioLabel: { fontSize: 16 },
+  errorText: { color: '#D94747', marginBottom: 14, textAlign: 'center' },
+  saveButton: { backgroundColor: '#E99664', paddingVertical: 16, borderRadius: 25, alignItems: 'center' },
+  disabledButton: { backgroundColor: '#F3C5A5' },
+  saveButtonText: { color: '#FFFFFF', fontSize: 18, fontWeight: '600' },
+  bgPaw: { position: 'absolute', width: 200, height: 200, opacity: 0.6, zIndex: -1 },
+  pawTopRight: { top: 10, right: 20, transform: [{ rotate: '15deg' }] },
+  pawMidLeft: { top: 250, left: 20, transform: [{ rotate: '-10deg' }] },
+  pawMidRight: { top: 500, right: 30, transform: [{ rotate: '5deg' }] },
+  pawBottomLeft: { top: 750, left: 20, transform: [{ rotate: '-20deg' }] },
+  emptyCollarsText: { fontSize: 15, textAlign: 'center', marginVertical: 10, fontStyle: 'italic' }
 });
 
 export default AddPetScreen;

@@ -59,6 +59,15 @@ const MealTile = ({ meal, onPress, isWeeklyMode }: MealTileProps) => {
 
   const formattedTime = `${String(hour).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
 
+  // Logika mapowania gramatury na etykiety tekstowe
+  const getPortionLabel = (grams: number) => {
+    if (grams < 30) return 'Mała porcja';
+    if (grams < 70) return 'Średnia porcja';
+    return 'Duża porcja';
+  };
+
+  const portionLabel = getPortionLabel(meal.portionGrams);
+
   if (isWeeklyMode) {
     return (
       <TouchableOpacity
@@ -86,9 +95,9 @@ const MealTile = ({ meal, onPress, isWeeklyMode }: MealTileProps) => {
             {pet ? pet.name : '...'}
           </Text>
           <Text style={[styles.weeklyTileTime, { fontSize: isMobile ? 10 : 12, color: theme === 'dark' ? '#A0A0A0' : '#555' }]} numberOfLines={1}>
-            {isMobile ? formattedTime : `${formattedTime} • ${meal.portionGrams}g`}
+            {isMobile ? formattedTime : `${formattedTime} • ${portionLabel}`}
           </Text>
-          {isMobile && <Text style={styles.weeklyTileGrams} numberOfLines={1}>{`${meal.portionGrams}g`}</Text>}
+          {isMobile && <Text style={styles.weeklyTileGrams} numberOfLines={1}>{portionLabel}</Text>}
         </View>
       </TouchableOpacity>
     );
@@ -117,7 +126,7 @@ const MealTile = ({ meal, onPress, isWeeklyMode }: MealTileProps) => {
       />
       <View style={styles.dailyTileInfo}>
         <Text style={[styles.dailyTilePetName, { color: currentColors.text }]}>{pet ? pet.name : 'Wczytywanie...'}</Text>
-        <Text style={[styles.dailyTileTime, { color: theme === 'dark' ? '#A0A0A0' : '#666' }]}>{`${formattedTime} • ${meal.portionGrams}g`}</Text>
+        <Text style={[styles.dailyTileTime, { color: theme === 'dark' ? '#A0A0A0' : '#666' }]}>{`${formattedTime} • ${portionLabel}`}</Text>
       </View>
     </TouchableOpacity>
   );

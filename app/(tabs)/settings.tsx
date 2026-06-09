@@ -20,14 +20,15 @@ const SettingsScreen = () => {
   const currentColors = Colors[currentTheme];
   const theme = currentTheme;
 
+  // Usunięto powiadomienia z kafelków
   const settingsOptions = [
     { id: 'account', label: 'Moje konto', icon: 'person-outline' },
     { id: 'theme', label: 'Motyw', icon: 'color-palette-outline' },
-    { id: 'notifications', label: 'Powiadomienia', icon: 'notifications-outline' },
   ];
 
   return (
     <ThemedView style={[styles.container, { backgroundColor: currentColors.background }]}>
+      {/* Dzwoneczek w nagłówku zostaje bez zmian */}
       <View style={[
         styles.header,
         {
@@ -72,8 +73,6 @@ const SettingsScreen = () => {
                   router.push('/my_account' as any);
                 } else if (item.id === 'theme') {
                   router.push('/theme' as any);
-                } else if (item.id === 'notifications') {
-                  router.push('/set_notification' as any);
                 }
               }}
             >

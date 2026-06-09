@@ -50,7 +50,7 @@ export const registerNewUser = async (email: string, password: string, username:
     created_at: new Date().toISOString(),
     role: 'user',
     image: "",
-    deviceId: "",
+    deviceId: "1234",
   });
 
   return user;
